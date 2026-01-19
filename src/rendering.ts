@@ -7,6 +7,10 @@ export type PlotlyHost = HTMLElement & {
   on: (event: string, handler: (event: unknown) => void) => void;
 };
 
+export type SurfaceViewState = {
+  camera?: Plotly.Camera;
+};
+
 const baseLayout = {
   paper_bgcolor: "#1a1f2b",
   plot_bgcolor: "#1a1f2b",
@@ -14,7 +18,11 @@ const baseLayout = {
   margin: { l: 40, r: 20, t: 30, b: 40 },
 };
 
-const buildSurfaceLayout = (surface: SurfaceData, selection: SelectionState) => ({
+const buildSurfaceLayout = (
+  surface: SurfaceData,
+  selection: SelectionState,
+  viewState?: SurfaceViewState
+) => ({
   ...baseLayout,
   dragmode: "orbit",
   scene: {
@@ -33,6 +41,7 @@ const buildSurfaceLayout = (surface: SurfaceData, selection: SelectionState) => 
     zaxis: {
       title: {text: "Value (Z)"},
     },
+    ...(viewState?.camera ? { camera: viewState.camera } : {}),
   },
 });
 
@@ -84,10 +93,11 @@ const buildSurfaceData = (surface: SurfaceData, selection: SelectionState) => {
 export const renderSurfaceChart = async (
   divId: string,
   surface: SurfaceData,
-  selection: SelectionState
+  selection: SelectionState,
+  viewState?: SurfaceViewState
 ): Promise<PlotlyHost> => {
   const data = buildSurfaceData(surface, selection);
-  const layout = buildSurfaceLayout(surface, selection);
+  const layout = buildSurfaceLayout(surface, selection, viewState);
 
   return (await Plotly.newPlot(divId, data, layout, {
     responsive: true,
@@ -98,9 +108,10 @@ export const renderSurfaceChart = async (
 export const updateSurfaceChart = async (
   divId: string,
   surface: SurfaceData,
-  selection: SelectionState
+  selection: SelectionState,
+  viewState?: SurfaceViewState
 ): Promise<void> => {
-  await Plotly.react(divId, buildSurfaceData(surface, selection), buildSurfaceLayout(surface, selection), {
+  await Plotly.react(divId, buildSurfaceData(surface, selection), buildSurfaceLayout(surface, selection, viewState), {
     responsive: true,
     modeBarButtonsToRemove: ["lasso2d", "select2d"],
   });

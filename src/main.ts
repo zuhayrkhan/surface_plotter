@@ -13,6 +13,7 @@ import {
   renderDataPreview,
   renderSliceChart,
   renderSurfaceChart,
+  SurfaceViewState,
   updateSurfaceChart,
   updateSliceChart,
 } from "./rendering";
@@ -37,16 +38,18 @@ const initialize = async () => {
     xIndex: initialX,
     yIndex: initialY,
   });
+  let surfaceViewState: SurfaceViewState = {};
   const surfaceHost = (await renderSurfaceChart(
     "surface3d",
     extractSurfaceWindow(surface, selectionState),
-    selectionState
+    selectionState,
+    surfaceViewState
   )) as PlotlyHost;
   const initialXSlice = extractXSlice(surface, selectionState.xIndex);
   const initialYSlice = extractYSlice(surface, selectionState.yIndex);
 
-  const sliceXHost = await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
-  const sliceYHost = await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
+  await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
+  await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
 
   const updateReadout = (xIndex: number, yIndex: number) => {
     sliceReadout.textContent = `Selected: ${surface.tenorLabels[xIndex]} / ${
@@ -78,7 +81,8 @@ const initialize = async () => {
       await updateSurfaceChart(
         "surface3d",
         extractSurfaceWindow(surface, selectionState),
-        selectionState
+        selectionState,
+        surfaceViewState
       );
     }
     if (
@@ -97,82 +101,6 @@ const initialize = async () => {
     });
   };
 
-  const updateSelectionWindow = async (
-    nextWindow: Pick<SelectionState, "xMin" | "xMax" | "yMin" | "yMax">
-  ) => {
-    await updateSelectionState({
-      ...selectionState,
-      xMin: nextWindow.xMin,
-      xMax: nextWindow.xMax,
-      yMin: nextWindow.yMin,
-      yMax: nextWindow.yMax,
-    });
-  };
-
-  const parseAxisRange = (event: Record<string, unknown>) => {
-    const range = event["xaxis.range"];
-    if (Array.isArray(range) && range.length === 2) {
-      const [min, max] = range;
-      if (typeof min === "number" && typeof max === "number") {
-        return { min, max };
-      }
-    }
-
-    const min = event["xaxis.range[0]"];
-    const max = event["xaxis.range[1]"];
-    if (typeof min === "number" && typeof max === "number") {
-      return { min, max };
-    }
-
-    return null;
-  };
-
-  const handleSliceZoom = (axis: "tenor" | "expiry") => (event: unknown) => {
-    const payload = event as Record<string, unknown>;
-    const isAuto = payload["xaxis.autorange"] === true;
-    if (isAuto) {
-      const resetWindow =
-        axis === "tenor"
-          ? {
-              xMin: fullSelection.xMin,
-              xMax: fullSelection.xMax,
-              yMin: selectionState.yMin,
-              yMax: selectionState.yMax,
-            }
-          : {
-              xMin: selectionState.xMin,
-              xMax: selectionState.xMax,
-              yMin: fullSelection.yMin,
-              yMax: fullSelection.yMax,
-            };
-      // Slice zoom should never mutate slice indices; only window bounds are updated here.
-      void updateSelectionWindow(resetWindow);
-      return;
-    }
-
-    const range = parseAxisRange(payload);
-    if (!range) {
-      return;
-    }
-
-    const updatedWindow =
-      axis === "tenor"
-        ? {
-            xMin: range.min,
-            xMax: range.max,
-            yMin: selectionState.yMin,
-            yMax: selectionState.yMax,
-          }
-        : {
-            xMin: selectionState.xMin,
-            xMax: selectionState.xMax,
-            yMin: range.min,
-            yMax: range.max,
-          };
-    // Slice zoom should never mutate slice indices; only window bounds are updated here.
-    void updateSelectionWindow(updatedWindow);
-  };
-
   const handleSliderChange = () => {
     void updateSelectionFromUserInput(
       Number(xSliceInput.value),
@@ -183,12 +111,16 @@ const initialize = async () => {
   xSliceInput.addEventListener("input", handleSliderChange);
   ySliceInput.addEventListener("input", handleSliderChange);
 
-  sliceXHost.on("plotly_relayout", handleSliceZoom("expiry"));
-  sliceYHost.on("plotly_relayout", handleSliceZoom("tenor"));
-
   let ignoreNextSurfaceClick = false;
   surfaceHost.on("plotly_relayout", (event) => {
     const payload = event as Record<string, unknown>;
+    const camera = payload["scene.camera"];
+    if (camera && typeof camera === "object") {
+      surfaceViewState = {
+        ...surfaceViewState,
+        camera: camera as SurfaceViewState["camera"],
+      };
+    }
     const hasCameraChange = Object.keys(payload).some((key) =>
       key.startsWith("scene.camera")
     );
