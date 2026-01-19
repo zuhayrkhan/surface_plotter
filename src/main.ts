@@ -89,6 +89,26 @@ const initialize = async () => {
     }
   };
 
+  const updateSelectionFromUserInput = async (xIndex: number, yIndex: number) => {
+    await updateSelectionState({
+      ...selectionState,
+      xIndex,
+      yIndex,
+    });
+  };
+
+  const updateSelectionWindow = async (
+    nextWindow: Pick<SelectionState, "xMin" | "xMax" | "yMin" | "yMax">
+  ) => {
+    await updateSelectionState({
+      ...selectionState,
+      xMin: nextWindow.xMin,
+      xMax: nextWindow.xMax,
+      yMin: nextWindow.yMin,
+      yMax: nextWindow.yMax,
+    });
+  };
+
   const parseAxisRange = (event: Record<string, unknown>) => {
     const range = event["xaxis.range"];
     if (Array.isArray(range) && range.length === 2) {
@@ -113,9 +133,20 @@ const initialize = async () => {
     if (isAuto) {
       const resetWindow =
         axis === "tenor"
-          ? { ...selectionState, xMin: fullSelection.xMin, xMax: fullSelection.xMax }
-          : { ...selectionState, yMin: fullSelection.yMin, yMax: fullSelection.yMax };
-      void updateSelectionState(resetWindow);
+          ? {
+              xMin: fullSelection.xMin,
+              xMax: fullSelection.xMax,
+              yMin: selectionState.yMin,
+              yMax: selectionState.yMax,
+            }
+          : {
+              xMin: selectionState.xMin,
+              xMax: selectionState.xMax,
+              yMin: fullSelection.yMin,
+              yMax: fullSelection.yMax,
+            };
+      // Slice zoom should never mutate slice indices; only window bounds are updated here.
+      void updateSelectionWindow(resetWindow);
       return;
     }
 
@@ -126,17 +157,27 @@ const initialize = async () => {
 
     const updatedWindow =
       axis === "tenor"
-        ? { ...selectionState, xMin: range.min, xMax: range.max }
-        : { ...selectionState, yMin: range.min, yMax: range.max };
-    void updateSelectionState(updatedWindow);
+        ? {
+            xMin: range.min,
+            xMax: range.max,
+            yMin: selectionState.yMin,
+            yMax: selectionState.yMax,
+          }
+        : {
+            xMin: selectionState.xMin,
+            xMax: selectionState.xMax,
+            yMin: range.min,
+            yMax: range.max,
+          };
+    // Slice zoom should never mutate slice indices; only window bounds are updated here.
+    void updateSelectionWindow(updatedWindow);
   };
 
   const handleSliderChange = () => {
-    void updateSelectionState({
-      ...selectionState,
-      xIndex: Number(xSliceInput.value),
-      yIndex: Number(ySliceInput.value),
-    });
+    void updateSelectionFromUserInput(
+      Number(xSliceInput.value),
+      Number(ySliceInput.value)
+    );
   };
 
   xSliceInput.addEventListener("input", handleSliderChange);
@@ -169,11 +210,7 @@ const initialize = async () => {
     if (!point) {
       return;
     }
-    void updateSelectionState({
-      ...selectionState,
-      xIndex: Math.round(point.x),
-      yIndex: Math.round(point.y),
-    });
+    void updateSelectionFromUserInput(Math.round(point.x), Math.round(point.y));
   });
 
   updateReadout(selectionState.xIndex, selectionState.yIndex);
