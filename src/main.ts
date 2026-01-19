@@ -69,6 +69,7 @@ const initialize = async () => {
     updateReadout(xSlice.fixedIndex, ySlice.fixedIndex);
   };
 
+  let selectionDrivenAxisUpdate = false;
   const updateSelectionState = async (nextSelection: SelectionState) => {
     const previousSelection = selectionState;
     selectionState = clampSelectionState(surface, nextSelection);
@@ -78,12 +79,16 @@ const initialize = async () => {
       selectionState.yMin !== previousSelection.yMin ||
       selectionState.yMax !== previousSelection.yMax;
     if (windowChanged) {
+      selectionDrivenAxisUpdate = true;
       await updateSurfaceChart(
         "surface3d",
         extractSurfaceWindow(surface, selectionState),
         selectionState,
         surfaceViewState
       );
+      requestAnimationFrame(() => {
+        selectionDrivenAxisUpdate = false;
+      });
     }
     if (
       selectionState.xIndex !== previousSelection.xIndex ||
@@ -94,10 +99,15 @@ const initialize = async () => {
   };
 
   const updateSelectionFromUserInput = async (xIndex: number, yIndex: number) => {
+    const focusPadding = 1;
     await updateSelectionState({
       ...selectionState,
       xIndex,
       yIndex,
+      xMin: xIndex - focusPadding,
+      xMax: xIndex + focusPadding,
+      yMin: yIndex - focusPadding,
+      yMax: yIndex + focusPadding,
     });
   };
 
@@ -120,6 +130,12 @@ const initialize = async () => {
         ...surfaceViewState,
         camera: camera as SurfaceViewState["camera"],
       };
+    }
+    const hasAxisChange = Object.keys(payload).some(
+      (key) => key.startsWith("scene.xaxis") || key.startsWith("scene.yaxis")
+    );
+    if (hasAxisChange && !selectionDrivenAxisUpdate) {
+      // Ignore user-driven axis relayouts for selection updates.
     }
     const hasCameraChange = Object.keys(payload).some((key) =>
       key.startsWith("scene.camera")
