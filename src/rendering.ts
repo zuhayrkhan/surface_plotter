@@ -1,6 +1,6 @@
 import Plotly from "plotly.js-dist-min";
 
-import { SurfaceData } from "./domain";
+import { DomainWindow, SurfaceData } from "./domain";
 import { SliceData } from "./slices";
 
 export type PlotlyHost = HTMLElement & {
@@ -14,43 +14,59 @@ const baseLayout = {
   margin: { l: 40, r: 20, t: 30, b: 40 },
 };
 
+const buildSurfaceLayout = (surface: SurfaceData, window: DomainWindow) => ({
+  ...baseLayout,
+  scene: {
+    xaxis: {
+      title: "Tenor",
+      tickvals: surface.xValues,
+      ticktext: surface.tenorLabels,
+      range: [window.xMin, window.xMax],
+    },
+    yaxis: {
+      title: "Expiry",
+      tickvals: surface.yValues,
+      ticktext: surface.expiryLabels,
+      range: [window.yMin, window.yMax],
+    },
+    zaxis: {
+      title: "Value (Z)",
+    },
+  },
+});
+
+const buildSurfaceData = (surface: SurfaceData) => [
+  {
+    type: "surface",
+    x: surface.xValues,
+    y: surface.yValues,
+    z: surface.zValues,
+    colorscale: "Viridis",
+    showscale: true,
+  },
+];
+
 export const renderSurfaceChart = async (
   divId: string,
-  surface: SurfaceData
+  surface: SurfaceData,
+  window: DomainWindow
 ): Promise<PlotlyHost> => {
-  const data = [
-    {
-      type: "surface",
-      x: surface.xValues,
-      y: surface.yValues,
-      z: surface.zValues,
-      colorscale: "Viridis",
-      showscale: true,
-    },
-  ];
-
-  const layout = {
-    ...baseLayout,
-    scene: {
-      xaxis: {
-        title: "Tenor",
-        tickvals: surface.xValues,
-        ticktext: surface.tenorLabels,
-      },
-      yaxis: {
-        title: "Expiry",
-        tickvals: surface.yValues,
-        ticktext: surface.expiryLabels,
-      },
-      zaxis: {
-        title: "Value (Z)",
-      },
-    },
-  };
+  const data = buildSurfaceData(surface);
+  const layout = buildSurfaceLayout(surface, window);
 
   return (await Plotly.newPlot(divId, data, layout, {
     responsive: true,
   })) as PlotlyHost;
+};
+
+export const updateSurfaceChart = async (
+  divId: string,
+  surface: SurfaceData,
+  window: DomainWindow
+): Promise<void> => {
+  await Plotly.react(divId, buildSurfaceData(surface), buildSurfaceLayout(surface, window), {
+    responsive: true,
+  });
 };
 
 const buildSliceLayout = (slice: SliceData, axisTitle: string) => ({
@@ -79,11 +95,11 @@ export const renderSliceChart = async (
   slice: SliceData,
   axisTitle: string,
   lineColor: string
-) => {
-  await Plotly.newPlot(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
+): Promise<PlotlyHost> => {
+  return (await Plotly.newPlot(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
     responsive: true,
     displayModeBar: false,
-  });
+  })) as PlotlyHost;
 };
 
 export const updateSliceChart = async (
