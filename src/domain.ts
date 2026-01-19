@@ -6,6 +6,13 @@ export type SurfaceData = {
   zValues: number[][];
 };
 
+export type DomainWindow = {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+};
+
 export const TENOR_LABELS = [
   "1M",
   "3M",
@@ -47,6 +54,85 @@ export const generateTenorSurface = (
   return {
     tenorLabels: tenors,
     expiryLabels: expiries,
+    xValues,
+    yValues,
+    zValues,
+  };
+};
+
+export const createDomainWindow = (surface: SurfaceData): DomainWindow => ({
+  xMin: surface.xValues[0],
+  xMax: surface.xValues[surface.xValues.length - 1],
+  yMin: surface.yValues[0],
+  yMax: surface.yValues[surface.yValues.length - 1],
+});
+
+export const clampDomainWindow = (
+  surface: SurfaceData,
+  window: DomainWindow
+): DomainWindow => {
+  const minX = surface.xValues[0];
+  const maxX = surface.xValues[surface.xValues.length - 1];
+  const minY = surface.yValues[0];
+  const maxY = surface.yValues[surface.yValues.length - 1];
+
+  const xMin = Math.min(Math.max(Math.min(window.xMin, window.xMax), minX), maxX);
+  const xMax = Math.max(Math.min(Math.max(window.xMin, window.xMax), maxX), minX);
+  const yMin = Math.min(Math.max(Math.min(window.yMin, window.yMax), minY), maxY);
+  const yMax = Math.max(Math.min(Math.max(window.yMin, window.yMax), maxY), minY);
+
+  return { xMin, xMax, yMin, yMax };
+};
+
+const nearestIndexForValue = (values: number[], target: number) =>
+  values.reduce((bestIndex, value, index) => {
+    const bestDistance = Math.abs(values[bestIndex] - target);
+    const nextDistance = Math.abs(value - target);
+    return nextDistance < bestDistance ? index : bestIndex;
+  }, 0);
+
+export const extractSurfaceWindow = (
+  surface: SurfaceData,
+  window: DomainWindow
+): SurfaceData => {
+  const clamped = clampDomainWindow(surface, window);
+
+  const xCandidates = surface.xValues
+    .map((value, index) => ({ value, index }))
+    .filter(({ value }) => value >= clamped.xMin && value <= clamped.xMax);
+  const yCandidates = surface.yValues
+    .map((value, index) => ({ value, index }))
+    .filter(({ value }) => value >= clamped.yMin && value <= clamped.yMax);
+
+  const fallbackX =
+    xCandidates.length === 0
+      ? (() => {
+          const midpoint = (clamped.xMin + clamped.xMax) / 2;
+          const index = nearestIndexForValue(surface.xValues, midpoint);
+          return [{ value: surface.xValues[index], index }];
+        })()
+      : xCandidates;
+  const fallbackY =
+    yCandidates.length === 0
+      ? (() => {
+          const midpoint = (clamped.yMin + clamped.yMax) / 2;
+          const index = nearestIndexForValue(surface.yValues, midpoint);
+          return [{ value: surface.yValues[index], index }];
+        })()
+      : yCandidates;
+
+  const xValues = fallbackX.map(({ value }) => value);
+  const yValues = fallbackY.map(({ value }) => value);
+  const tenorLabels = fallbackX.map(({ index }) => surface.tenorLabels[index]);
+  const expiryLabels = fallbackY.map(({ index }) => surface.expiryLabels[index]);
+
+  const zValues = fallbackY.map(({ index: rowIndex }) =>
+    fallbackX.map(({ index: colIndex }) => surface.zValues[rowIndex][colIndex])
+  );
+
+  return {
+    tenorLabels,
+    expiryLabels,
     xValues,
     yValues,
     zValues,

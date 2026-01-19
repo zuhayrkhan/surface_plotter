@@ -1,15 +1,26 @@
-import { EXPIRY_LABELS, TENOR_LABELS, generateTenorSurface } from "./domain";
+import {
+  DomainWindow,
+  EXPIRY_LABELS,
+  TENOR_LABELS,
+  clampDomainWindow,
+  createDomainWindow,
+  extractSurfaceWindow,
+  generateTenorSurface,
+} from "./domain";
 import { extractXSlice, extractYSlice } from "./slices";
 import {
   PlotlyHost,
   renderDataPreview,
   renderSliceChart,
   renderSurfaceChart,
+  updateSurfaceChart,
   updateSliceChart,
 } from "./rendering";
 
 const initialize = async () => {
   const surface = generateTenorSurface(TENOR_LABELS, EXPIRY_LABELS);
+  const fullWindow = createDomainWindow(surface);
+  let activeWindow: DomainWindow = fullWindow;
 
   const xSliceInput = document.getElementById("xSlice") as HTMLInputElement;
   const ySliceInput = document.getElementById("ySlice") as HTMLInputElement;
@@ -20,15 +31,19 @@ const initialize = async () => {
 
   renderDataPreview("dataPreview", surface);
 
-  const surfaceHost = (await renderSurfaceChart("surface3d", surface)) as PlotlyHost;
+  const surfaceHost = (await renderSurfaceChart(
+    "surface3d",
+    extractSurfaceWindow(surface, activeWindow),
+    activeWindow
+  )) as PlotlyHost;
 
   const initialX = 3;
   const initialY = 2;
   const initialXSlice = extractXSlice(surface, initialX);
   const initialYSlice = extractYSlice(surface, initialY);
 
-  await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
-  await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
+  const sliceXHost = await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
+  const sliceYHost = await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
 
   const updateReadout = (xIndex: number, yIndex: number) => {
     sliceReadout.textContent = `Selected: ${surface.tenorLabels[xIndex]} / ${
@@ -48,12 +63,66 @@ const initialize = async () => {
     updateReadout(xSlice.fixedIndex, ySlice.fixedIndex);
   };
 
+  const updateSurfaceWindow = async (nextWindow: DomainWindow) => {
+    activeWindow = clampDomainWindow(surface, nextWindow);
+    await updateSurfaceChart(
+      "surface3d",
+      extractSurfaceWindow(surface, activeWindow),
+      activeWindow
+    );
+  };
+
+  const parseAxisRange = (event: Record<string, unknown>) => {
+    const range = event["xaxis.range"];
+    if (Array.isArray(range) && range.length === 2) {
+      const [min, max] = range;
+      if (typeof min === "number" && typeof max === "number") {
+        return { min, max };
+      }
+    }
+
+    const min = event["xaxis.range[0]"];
+    const max = event["xaxis.range[1]"];
+    if (typeof min === "number" && typeof max === "number") {
+      return { min, max };
+    }
+
+    return null;
+  };
+
+  const handleSliceZoom = (axis: "tenor" | "expiry") => (event: unknown) => {
+    const payload = event as Record<string, unknown>;
+    const isAuto = payload["xaxis.autorange"] === true;
+    if (isAuto) {
+      const resetWindow =
+        axis === "tenor"
+          ? { ...activeWindow, xMin: fullWindow.xMin, xMax: fullWindow.xMax }
+          : { ...activeWindow, yMin: fullWindow.yMin, yMax: fullWindow.yMax };
+      void updateSurfaceWindow(resetWindow);
+      return;
+    }
+
+    const range = parseAxisRange(payload);
+    if (!range) {
+      return;
+    }
+
+    const updatedWindow =
+      axis === "tenor"
+        ? { ...activeWindow, xMin: range.min, xMax: range.max }
+        : { ...activeWindow, yMin: range.min, yMax: range.max };
+    void updateSurfaceWindow(updatedWindow);
+  };
+
   const handleSliderChange = () => {
     void updateSlices(Number(xSliceInput.value), Number(ySliceInput.value));
   };
 
   xSliceInput.addEventListener("input", handleSliderChange);
   ySliceInput.addEventListener("input", handleSliderChange);
+
+  sliceXHost.on("plotly_relayout", handleSliceZoom("expiry"));
+  sliceYHost.on("plotly_relayout", handleSliceZoom("tenor"));
 
   surfaceHost.on("plotly_click", (event) => {
     const payload = event as { points?: Array<{ x: number; y: number }> };
