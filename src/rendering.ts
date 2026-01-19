@@ -1,7 +1,7 @@
 import Plotly from "plotly.js-dist-min";
 
-import {DomainWindow, SurfaceData} from "./domain";
-import {SliceData} from "./slices";
+import { SelectionState, SurfaceData } from "./domain";
+import { SliceData } from "./slices";
 
 export type PlotlyHost = HTMLElement & {
   on: (event: string, handler: (event: unknown) => void) => void;
@@ -14,20 +14,21 @@ const baseLayout = {
   margin: { l: 40, r: 20, t: 30, b: 40 },
 };
 
-const buildSurfaceLayout = (surface: SurfaceData, window: DomainWindow) => ({
+const buildSurfaceLayout = (surface: SurfaceData, selection: SelectionState) => ({
   ...baseLayout,
+  dragmode: "orbit",
   scene: {
     xaxis: {
       title: {text: "Tenor"},
       tickvals: surface.xValues,
       ticktext: surface.tenorLabels,
-      range: [window.xMin, window.xMax],
+      range: [selection.xMin, selection.xMax],
     },
     yaxis: {
       title: {text: "Expiry"},
       tickvals: surface.yValues,
       ticktext: surface.expiryLabels,
-      range: [window.yMin, window.yMax],
+      range: [selection.yMin, selection.yMax],
     },
     zaxis: {
       title: {text: "Value (Z)"},
@@ -35,37 +36,73 @@ const buildSurfaceLayout = (surface: SurfaceData, window: DomainWindow) => ({
   },
 });
 
-const buildSurfaceData = (surface: SurfaceData) => [
-  {
-    type: "surface" as const,
-    x: surface.xValues,
-    y: surface.yValues,
-    z: surface.zValues,
-    colorscale: "Viridis",
-    showscale: true,
-  },
-];
+const findSurfaceMinimum = (surface: SurfaceData) =>
+  surface.zValues.reduce(
+    (minValue, row) =>
+      row.reduce((rowMin, value) => Math.min(rowMin, value), minValue),
+    Number.POSITIVE_INFINITY
+  );
+
+const buildSelectionOutline = (selection: SelectionState, zValue: number) => ({
+  type: "scatter3d" as const,
+  mode: "lines" as const,
+  x: [
+    selection.xMin,
+    selection.xMax,
+    selection.xMax,
+    selection.xMin,
+    selection.xMin,
+  ],
+  y: [
+    selection.yMin,
+    selection.yMin,
+    selection.yMax,
+    selection.yMax,
+    selection.yMin,
+  ],
+  z: [zValue, zValue, zValue, zValue, zValue],
+  line: { color: "#fbbf24", width: 6 },
+  hoverinfo: "skip" as const,
+  showlegend: false,
+});
+
+const buildSurfaceData = (surface: SurfaceData, selection: SelectionState) => {
+  const zFloor = findSurfaceMinimum(surface);
+  return [
+    {
+      type: "surface" as const,
+      x: surface.xValues,
+      y: surface.yValues,
+      z: surface.zValues,
+      colorscale: "Viridis",
+      showscale: true,
+    },
+    buildSelectionOutline(selection, zFloor),
+  ];
+};
 
 export const renderSurfaceChart = async (
   divId: string,
   surface: SurfaceData,
-  window: DomainWindow
+  selection: SelectionState
 ): Promise<PlotlyHost> => {
-  const data = buildSurfaceData(surface);
-  const layout = buildSurfaceLayout(surface, window);
+  const data = buildSurfaceData(surface, selection);
+  const layout = buildSurfaceLayout(surface, selection);
 
   return (await Plotly.newPlot(divId, data, layout, {
     responsive: true,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"],
   })) as PlotlyHost;
 };
 
 export const updateSurfaceChart = async (
   divId: string,
   surface: SurfaceData,
-  window: DomainWindow
+  selection: SelectionState
 ): Promise<void> => {
-  await Plotly.react(divId, buildSurfaceData(surface), buildSurfaceLayout(surface, window), {
+  await Plotly.react(divId, buildSurfaceData(surface, selection), buildSurfaceLayout(surface, selection), {
     responsive: true,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"],
   });
 };
 
@@ -78,6 +115,7 @@ const buildSliceLayout = (slice: SliceData, axisTitle: string) => ({
   },
   yaxis: {
     title: {text: "Value (Z)"},
+    fixedrange: true,
   },
 });
 
@@ -99,6 +137,7 @@ export const renderSliceChart = async (
   return (await Plotly.newPlot(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
     responsive: true,
     displayModeBar: false,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"],
   })) as PlotlyHost;
 };
 
@@ -111,6 +150,7 @@ export const updateSliceChart = async (
   await Plotly.react(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
     responsive: true,
     displayModeBar: false,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"],
   });
 };
 
