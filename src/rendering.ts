@@ -1,7 +1,7 @@
 import Plotly from "plotly.js-dist-min";
 
-import { DomainWindow, SurfaceData } from "./domain";
-import { SliceData } from "./slices";
+import {DomainWindow, SurfaceData} from "./domain";
+import {SliceData} from "./slices";
 
 export type PlotlyHost = HTMLElement & {
   on: (event: string, handler: (event: unknown) => void) => void;
@@ -72,18 +72,18 @@ export const updateSurfaceChart = async (
 const buildSliceLayout = (slice: SliceData, axisTitle: string) => ({
   ...baseLayout,
   xaxis: {
-    title: axisTitle,
+    title: {text: axisTitle},
     tickvals: slice.axisValues,
     ticktext: slice.axisLabels,
   },
   yaxis: {
-    title: "Value (Z)",
+    title: {text: "Value (Z)"},
   },
 });
 
 const buildSliceTrace = (slice: SliceData, lineColor: string) => ({
-  type: "scatter",
-  mode: "lines+markers",
+  type: "scatter" as const,
+  mode: "lines+markers" as const,
   x: slice.axisValues,
   y: slice.zValues,
   line: { color: lineColor, width: 2 },
