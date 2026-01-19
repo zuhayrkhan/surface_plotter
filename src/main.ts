@@ -1,9 +1,9 @@
 import {
-  DomainWindow,
   EXPIRY_LABELS,
+  SelectionState,
   TENOR_LABELS,
-  clampDomainWindow,
-  createDomainWindow,
+  clampSelectionState,
+  createSelectionState,
   extractSurfaceWindow,
   generateTenorSurface,
 } from "./domain";
@@ -19,8 +19,8 @@ import {
 
 const initialize = async () => {
   const surface = generateTenorSurface(TENOR_LABELS, EXPIRY_LABELS);
-  const fullWindow = createDomainWindow(surface);
-  let activeWindow: DomainWindow = fullWindow;
+  const fullSelection = createSelectionState(surface);
+  let selectionState: SelectionState = fullSelection;
 
   const xSliceInput = document.getElementById("xSlice") as HTMLInputElement;
   const ySliceInput = document.getElementById("ySlice") as HTMLInputElement;
@@ -33,8 +33,8 @@ const initialize = async () => {
 
   const surfaceHost = (await renderSurfaceChart(
     "surface3d",
-    extractSurfaceWindow(surface, activeWindow),
-    activeWindow
+    extractSurfaceWindow(surface, selectionState),
+    selectionState
   )) as PlotlyHost;
 
   const initialX = 3;
@@ -63,12 +63,12 @@ const initialize = async () => {
     updateReadout(xSlice.fixedIndex, ySlice.fixedIndex);
   };
 
-  const updateSurfaceWindow = async (nextWindow: DomainWindow) => {
-    activeWindow = clampDomainWindow(surface, nextWindow);
+  const updateSelectionState = async (nextSelection: SelectionState) => {
+    selectionState = clampSelectionState(surface, nextSelection);
     await updateSurfaceChart(
       "surface3d",
-      extractSurfaceWindow(surface, activeWindow),
-      activeWindow
+      extractSurfaceWindow(surface, selectionState),
+      selectionState
     );
   };
 
@@ -96,9 +96,9 @@ const initialize = async () => {
     if (isAuto) {
       const resetWindow =
         axis === "tenor"
-          ? { ...activeWindow, xMin: fullWindow.xMin, xMax: fullWindow.xMax }
-          : { ...activeWindow, yMin: fullWindow.yMin, yMax: fullWindow.yMax };
-      void updateSurfaceWindow(resetWindow);
+          ? { ...selectionState, xMin: fullSelection.xMin, xMax: fullSelection.xMax }
+          : { ...selectionState, yMin: fullSelection.yMin, yMax: fullSelection.yMax };
+      void updateSelectionState(resetWindow);
       return;
     }
 
@@ -109,9 +109,9 @@ const initialize = async () => {
 
     const updatedWindow =
       axis === "tenor"
-        ? { ...activeWindow, xMin: range.min, xMax: range.max }
-        : { ...activeWindow, yMin: range.min, yMax: range.max };
-    void updateSurfaceWindow(updatedWindow);
+        ? { ...selectionState, xMin: range.min, xMax: range.max }
+        : { ...selectionState, yMin: range.min, yMax: range.max };
+    void updateSelectionState(updatedWindow);
   };
 
   const handleSliderChange = () => {

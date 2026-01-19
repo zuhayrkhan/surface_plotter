@@ -6,7 +6,7 @@ export type SurfaceData = {
   zValues: number[][];
 };
 
-export type DomainWindow = {
+export type SelectionState = {
   xMin: number;
   xMax: number;
   yMin: number;
@@ -60,26 +60,38 @@ export const generateTenorSurface = (
   };
 };
 
-export const createDomainWindow = (surface: SurfaceData): DomainWindow => ({
+export const createSelectionState = (surface: SurfaceData): SelectionState => ({
   xMin: surface.xValues[0],
   xMax: surface.xValues[surface.xValues.length - 1],
   yMin: surface.yValues[0],
   yMax: surface.yValues[surface.yValues.length - 1],
 });
 
-export const clampDomainWindow = (
+export const clampSelectionState = (
   surface: SurfaceData,
-  window: DomainWindow
-): DomainWindow => {
+  selection: SelectionState
+): SelectionState => {
   const minX = surface.xValues[0];
   const maxX = surface.xValues[surface.xValues.length - 1];
   const minY = surface.yValues[0];
   const maxY = surface.yValues[surface.yValues.length - 1];
 
-  const xMin = Math.min(Math.max(Math.min(window.xMin, window.xMax), minX), maxX);
-  const xMax = Math.max(Math.min(Math.max(window.xMin, window.xMax), maxX), minX);
-  const yMin = Math.min(Math.max(Math.min(window.yMin, window.yMax), minY), maxY);
-  const yMax = Math.max(Math.min(Math.max(window.yMin, window.yMax), maxY), minY);
+  const xMin = Math.min(
+    Math.max(Math.min(selection.xMin, selection.xMax), minX),
+    maxX
+  );
+  const xMax = Math.max(
+    Math.min(Math.max(selection.xMin, selection.xMax), maxX),
+    minX
+  );
+  const yMin = Math.min(
+    Math.max(Math.min(selection.yMin, selection.yMax), minY),
+    maxY
+  );
+  const yMax = Math.max(
+    Math.min(Math.max(selection.yMin, selection.yMax), maxY),
+    minY
+  );
 
   return { xMin, xMax, yMin, yMax };
 };
@@ -93,9 +105,9 @@ const nearestIndexForValue = (values: number[], target: number) =>
 
 export const extractSurfaceWindow = (
   surface: SurfaceData,
-  window: DomainWindow
+  selection: SelectionState
 ): SurfaceData => {
-  const clamped = clampDomainWindow(surface, window);
+  const clamped = clampSelectionState(surface, selection);
 
   const xCandidates = surface.xValues
     .map((value, index) => ({ value, index }))
