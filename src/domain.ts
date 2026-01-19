@@ -11,6 +11,8 @@ export type SelectionState = {
   xMax: number;
   yMin: number;
   yMax: number;
+  xIndex: number;
+  yIndex: number;
 };
 
 export const TENOR_LABELS = [
@@ -65,6 +67,8 @@ export const createSelectionState = (surface: SurfaceData): SelectionState => ({
   xMax: surface.xValues[surface.xValues.length - 1],
   yMin: surface.yValues[0],
   yMax: surface.yValues[surface.yValues.length - 1],
+  xIndex: 0,
+  yIndex: 0,
 });
 
 export const clampSelectionState = (
@@ -93,7 +97,16 @@ export const clampSelectionState = (
     minY
   );
 
-  return { xMin, xMax, yMin, yMax };
+  const xIndex = Math.min(
+    Math.max(Math.round(selection.xIndex), 0),
+    surface.xValues.length - 1
+  );
+  const yIndex = Math.min(
+    Math.max(Math.round(selection.yIndex), 0),
+    surface.yValues.length - 1
+  );
+
+  return { xMin, xMax, yMin, yMax, xIndex, yIndex };
 };
 
 const nearestIndexForValue = (values: number[], target: number) =>

@@ -20,7 +20,6 @@ import {
 const initialize = async () => {
   const surface = generateTenorSurface(TENOR_LABELS, EXPIRY_LABELS);
   const fullSelection = createSelectionState(surface);
-  let selectionState: SelectionState = fullSelection;
 
   const xSliceInput = document.getElementById("xSlice") as HTMLInputElement;
   const ySliceInput = document.getElementById("ySlice") as HTMLInputElement;
@@ -31,16 +30,20 @@ const initialize = async () => {
 
   renderDataPreview("dataPreview", surface);
 
+  const initialX = 3;
+  const initialY = 2;
+  let selectionState: SelectionState = clampSelectionState(surface, {
+    ...fullSelection,
+    xIndex: initialX,
+    yIndex: initialY,
+  });
   const surfaceHost = (await renderSurfaceChart(
     "surface3d",
     extractSurfaceWindow(surface, selectionState),
     selectionState
   )) as PlotlyHost;
-
-  const initialX = 3;
-  const initialY = 2;
-  const initialXSlice = extractXSlice(surface, initialX);
-  const initialYSlice = extractYSlice(surface, initialY);
+  const initialXSlice = extractXSlice(surface, selectionState.xIndex);
+  const initialYSlice = extractYSlice(surface, selectionState.yIndex);
 
   const sliceXHost = await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
   const sliceYHost = await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
@@ -64,12 +67,26 @@ const initialize = async () => {
   };
 
   const updateSelectionState = async (nextSelection: SelectionState) => {
+    const previousSelection = selectionState;
     selectionState = clampSelectionState(surface, nextSelection);
-    await updateSurfaceChart(
-      "surface3d",
-      extractSurfaceWindow(surface, selectionState),
-      selectionState
-    );
+    const windowChanged =
+      selectionState.xMin !== previousSelection.xMin ||
+      selectionState.xMax !== previousSelection.xMax ||
+      selectionState.yMin !== previousSelection.yMin ||
+      selectionState.yMax !== previousSelection.yMax;
+    if (windowChanged) {
+      await updateSurfaceChart(
+        "surface3d",
+        extractSurfaceWindow(surface, selectionState),
+        selectionState
+      );
+    }
+    if (
+      selectionState.xIndex !== previousSelection.xIndex ||
+      selectionState.yIndex !== previousSelection.yIndex
+    ) {
+      await updateSlices(selectionState.xIndex, selectionState.yIndex);
+    }
   };
 
   const parseAxisRange = (event: Record<string, unknown>) => {
@@ -115,7 +132,11 @@ const initialize = async () => {
   };
 
   const handleSliderChange = () => {
-    void updateSlices(Number(xSliceInput.value), Number(ySliceInput.value));
+    void updateSelectionState({
+      ...selectionState,
+      xIndex: Number(xSliceInput.value),
+      yIndex: Number(ySliceInput.value),
+    });
   };
 
   xSliceInput.addEventListener("input", handleSliderChange);
@@ -124,16 +145,38 @@ const initialize = async () => {
   sliceXHost.on("plotly_relayout", handleSliceZoom("expiry"));
   sliceYHost.on("plotly_relayout", handleSliceZoom("tenor"));
 
+  let ignoreNextSurfaceClick = false;
+  surfaceHost.on("plotly_relayout", (event) => {
+    const payload = event as Record<string, unknown>;
+    const hasCameraChange = Object.keys(payload).some((key) =>
+      key.startsWith("scene.camera")
+    );
+    if (hasCameraChange) {
+      ignoreNextSurfaceClick = true;
+      requestAnimationFrame(() => {
+        ignoreNextSurfaceClick = false;
+      });
+    }
+  });
+
   surfaceHost.on("plotly_click", (event) => {
+    if (ignoreNextSurfaceClick) {
+      ignoreNextSurfaceClick = false;
+      return;
+    }
     const payload = event as { points?: Array<{ x: number; y: number }> };
     const point = payload.points?.[0];
     if (!point) {
       return;
     }
-    void updateSlices(Math.round(point.x), Math.round(point.y));
+    void updateSelectionState({
+      ...selectionState,
+      xIndex: Math.round(point.x),
+      yIndex: Math.round(point.y),
+    });
   });
 
-  updateReadout(initialXSlice.fixedIndex, initialYSlice.fixedIndex);
+  updateReadout(selectionState.xIndex, selectionState.yIndex);
 };
 
 void initialize();
