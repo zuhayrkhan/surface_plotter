@@ -2,17 +2,18 @@ import {
   CursorModifier,
   FastLineRenderableSeries,
   MouseWheelZoomModifier,
+  EAutoRange,
   NumericAxis,
   SciChartSurface,
   XyDataSeries,
   ZoomPanModifier,
 } from "scichart";
 import {
+  EDrawMeshAs,
   GradientColorPalette,
   MouseWheelZoomModifier3D,
   NumericAxis3D,
   OrbitModifier3D,
-  PanModifier3D,
   SciChart3DSurface,
   SurfaceMeshRenderableSeries3D,
   UniformGridDataSeries3D,
@@ -98,32 +99,32 @@ const buildSurfaceChart = async (divId: string, data: SurfaceData) => {
 
   sciChart3DSurface.xAxis = new NumericAxis3D(wasmContext, {
     axisTitle: "Tenor",
-    autoRange: "Always",
+    autoRange: EAutoRange.Always,
   });
   sciChart3DSurface.yAxis = new NumericAxis3D(wasmContext, {
     axisTitle: "Expiry",
-    autoRange: "Always",
+    autoRange: EAutoRange.Always,
   });
   sciChart3DSurface.zAxis = new NumericAxis3D(wasmContext, {
     axisTitle: "Volatility",
-    autoRange: "Always",
+    autoRange: EAutoRange.Always,
   });
 
   const dataSeries = new UniformGridDataSeries3D(wasmContext, {
     xStart: 0,
     xStep: 1,
-    yStart: 0,
-    yStep: 1,
-    zValues: data.zValues,
+    zStart: 0,
+    zStep: 1,
+    yValues: data.zValues,
   });
 
   // Surface mesh series uses a gradient palette to map Z values to color.
   const surfaceSeries = new SurfaceMeshRenderableSeries3D(wasmContext, {
     dataSeries,
-    drawMeshAs: "SolidMesh",
+    drawMeshAs: EDrawMeshAs.SOLID_MESH,
     stroke: "#1f2937",
     strokeThickness: 1,
-    meshColorPalette: new GradientColorPalette({
+    meshColorPalette: new GradientColorPalette(wasmContext, {
       gradientStops: [
         { offset: 0, color: "#1e3a8a" },
         { offset: 0.5, color: "#38bdf8" },
@@ -135,8 +136,7 @@ const buildSurfaceChart = async (divId: string, data: SurfaceData) => {
   sciChart3DSurface.renderableSeries.add(surfaceSeries);
   sciChart3DSurface.chartModifiers.add(
     new OrbitModifier3D(),
-    new MouseWheelZoomModifier3D(),
-    new PanModifier3D()
+    new MouseWheelZoomModifier3D()
   );
 
   return { sciChart3DSurface, dataSeries };
