@@ -18,26 +18,26 @@ const buildSurfaceLayout = (surface: SurfaceData, window: DomainWindow) => ({
   ...baseLayout,
   scene: {
     xaxis: {
-      title: "Tenor",
+      title: {text: "Tenor"},
       tickvals: surface.xValues,
       ticktext: surface.tenorLabels,
       range: [window.xMin, window.xMax],
     },
     yaxis: {
-      title: "Expiry",
+      title: {text: "Expiry"},
       tickvals: surface.yValues,
       ticktext: surface.expiryLabels,
       range: [window.yMin, window.yMax],
     },
     zaxis: {
-      title: "Value (Z)",
+      title: {text: "Value (Z)"},
     },
   },
 });
 
 const buildSurfaceData = (surface: SurfaceData) => [
   {
-    type: "surface",
+    type: "surface" as const,
     x: surface.xValues,
     y: surface.yValues,
     z: surface.zValues,
