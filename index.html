@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SciChart 2D + 3D Tenor Curves</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0f1116;
+        color: #eef2f7;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        grid-template-rows: auto 1fr;
+        gap: 12px;
+        padding: 16px;
+        height: 100vh;
+        box-sizing: border-box;
+      }
+      .controls {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      .panel {
+        background: #1a1f2b;
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .chart-host {
+        flex: 1;
+        min-height: 240px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        font-size: 12px;
+        gap: 4px;
+      }
+      input[type="range"] {
+        width: 180px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <div class="controls">
+        <label>
+          Tenor slice (X)
+          <input id="xSlice" type="range" min="0" max="0" value="0" />
+        </label>
+        <label>
+          Expiry slice (Y)
+          <input id="ySlice" type="range" min="0" max="0" value="0" />
+        </label>
+        <span id="sliceReadout"></span>
+      </div>
+      <div class="panel">
+        <strong>3D Tenor Surface</strong>
+        <div id="surface3d" class="chart-host"></div>
+      </div>
+      <div class="panel">
+        <strong>X Slice (Tenor)</strong>
+        <div id="sliceX" class="chart-host"></div>
+        <strong>Y Slice (Expiry)</strong>
+        <div id="sliceY" class="chart-host"></div>
+      </div>
+    </div>
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>
