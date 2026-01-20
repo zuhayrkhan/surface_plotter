@@ -26,13 +26,44 @@ type SurfaceRenderer = {
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
   mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  axesGroup: THREE.Group;
   container: HTMLElement;
   resizeObserver: ResizeObserver;
 };
 
 const surfaceRenderers = new Map<string, SurfaceRenderer>();
 
-const buildSurfaceGeometry = (surface: SurfaceData) => {
+type SurfaceBounds = {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  zMin: number;
+  zMax: number;
+};
+
+type SurfaceGeometryData = {
+  geometry: THREE.BufferGeometry;
+  bounds: SurfaceBounds;
+  center: THREE.Vector3;
+};
+
+const computeSurfaceBounds = (surface: SurfaceData): SurfaceBounds => {
+  const zValues = surface.zValues.flat();
+  const zMin = Math.min(...zValues);
+  const zMax = Math.max(...zValues);
+
+  return {
+    xMin: Math.min(...surface.xValues),
+    xMax: Math.max(...surface.xValues),
+    yMin: Math.min(...surface.yValues),
+    yMax: Math.max(...surface.yValues),
+    zMin,
+    zMax,
+  };
+};
+
+const buildSurfaceGeometry = (surface: SurfaceData): SurfaceGeometryData => {
   const rows = surface.yValues.length;
   const cols = surface.xValues.length;
   const vertexCount = rows * cols;
@@ -41,15 +72,8 @@ const buildSurfaceGeometry = (surface: SurfaceData) => {
   const colors = new Float32Array(vertexCount * 3);
   const indices: number[] = [];
 
-  let zMin = Number.POSITIVE_INFINITY;
-  let zMax = Number.NEGATIVE_INFINITY;
-  surface.zValues.forEach((row) => {
-    row.forEach((value) => {
-      zMin = Math.min(zMin, value);
-      zMax = Math.max(zMax, value);
-    });
-  });
-  const range = zMax - zMin || 1;
+  const bounds = computeSurfaceBounds(surface);
+  const range = bounds.zMax - bounds.zMin || 1;
 
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
@@ -60,7 +84,7 @@ const buildSurfaceGeometry = (surface: SurfaceData) => {
       positions[positionOffset + 1] = surface.yValues[y];
       positions[positionOffset + 2] = zValue;
 
-      const normalized = (zValue - zMin) / range;
+      const normalized = (zValue - bounds.zMin) / range;
       const color = new THREE.Color();
       color.setHSL(0.65 - normalized * 0.55, 0.8, 0.55);
       colors[positionOffset] = color.r;
@@ -84,15 +108,162 @@ const buildSurfaceGeometry = (surface: SurfaceData) => {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
+  const center = new THREE.Vector3(
+    (bounds.xMin + bounds.xMax) / 2,
+    (bounds.yMin + bounds.yMax) / 2,
+    (bounds.zMin + bounds.zMax) / 2
+  );
+  geometry.translate(-center.x, -center.y, -center.z);
   geometry.computeBoundingBox();
 
-  if (geometry.boundingBox) {
-    const center = new THREE.Vector3();
-    geometry.boundingBox.getCenter(center);
-    geometry.translate(-center.x, -center.y, -center.z);
-  }
+  return { geometry, bounds, center };
+};
 
-  return geometry;
+const createTextSprite = (label: string, color: string, fontSize = 20) => {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return new THREE.Sprite();
+  }
+  context.font = `${fontSize}px sans-serif`;
+  const padding = 8;
+  const metrics = context.measureText(label);
+  const textWidth = Math.ceil(metrics.width);
+  canvas.width = textWidth + padding * 2;
+  canvas.height = fontSize + padding * 2;
+  context.font = `${fontSize}px sans-serif`;
+  context.fillStyle = color;
+  context.textBaseline = "middle";
+  context.fillText(label, padding, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  const scale = 0.02;
+  sprite.scale.set(canvas.width * scale, canvas.height * scale, 1);
+  return sprite;
+};
+
+const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
+  const group = new THREE.Group();
+  group.name = "axes";
+  const axisColors = {
+    x: "#f87171",
+    y: "#4ade80",
+    z: "#60a5fa",
+  };
+
+  const origin = new THREE.Vector3(bounds.xMin, bounds.yMin, bounds.zMin).sub(
+    center
+  );
+  const xEnd = new THREE.Vector3(bounds.xMax, bounds.yMin, bounds.zMin).sub(
+    center
+  );
+  const yEnd = new THREE.Vector3(bounds.xMin, bounds.yMax, bounds.zMin).sub(
+    center
+  );
+  const zEnd = new THREE.Vector3(bounds.xMin, bounds.yMin, bounds.zMax).sub(
+    center
+  );
+
+  const lineForPoints = (start: THREE.Vector3, end: THREE.Vector3, color: string) => {
+    const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+    const material = new THREE.LineBasicMaterial({ color });
+    return new THREE.Line(geometry, material);
+  };
+
+  group.add(lineForPoints(origin, xEnd, axisColors.x));
+  group.add(lineForPoints(origin, yEnd, axisColors.y));
+  group.add(lineForPoints(origin, zEnd, axisColors.z));
+
+  const tickCount = 4;
+  const tickSize = Math.max(
+    (bounds.xMax - bounds.xMin) * 0.02,
+    (bounds.yMax - bounds.yMin) * 0.02,
+    (bounds.zMax - bounds.zMin) * 0.02
+  );
+
+  const formatTickLabel = (value: number) => {
+    const rounded = Number(value.toFixed(2));
+    return rounded.toString();
+  };
+
+  const addTicks = (
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+    axis: "x" | "y" | "z"
+  ) => {
+    const delta = new THREE.Vector3().subVectors(end, start);
+    const step = delta.clone().divideScalar(tickCount);
+    for (let i = 1; i <= tickCount; i += 1) {
+      const tickStart = new THREE.Vector3()
+        .copy(start)
+        .add(step.clone().multiplyScalar(i));
+      const tickEnd = tickStart.clone();
+      if (axis === "x") {
+        tickEnd.y -= tickSize;
+      } else if (axis === "y") {
+        tickEnd.x -= tickSize;
+      } else {
+        tickEnd.x -= tickSize;
+      }
+      group.add(lineForPoints(tickStart, tickEnd, axisColors[axis]));
+
+      const labelValue =
+        axis === "x"
+          ? bounds.xMin + ((bounds.xMax - bounds.xMin) * i) / tickCount
+          : axis === "y"
+            ? bounds.yMin + ((bounds.yMax - bounds.yMin) * i) / tickCount
+            : bounds.zMin + ((bounds.zMax - bounds.zMin) * i) / tickCount;
+      const tickLabel = createTextSprite(
+        formatTickLabel(labelValue),
+        axisColors[axis],
+        14
+      );
+      if (axis === "x") {
+        tickLabel.position.copy(tickEnd).add(new THREE.Vector3(0, -tickSize * 1.5, 0));
+      } else if (axis === "y") {
+        tickLabel.position.copy(tickEnd).add(new THREE.Vector3(-tickSize * 1.5, 0, 0));
+      } else {
+        tickLabel.position.copy(tickEnd).add(new THREE.Vector3(-tickSize * 1.5, 0, 0));
+      }
+      group.add(tickLabel);
+    }
+  };
+
+  addTicks(origin, xEnd, "x");
+  addTicks(origin, yEnd, "y");
+  addTicks(origin, zEnd, "z");
+
+  const labelOffset = tickSize * 2;
+  const xLabel = createTextSprite("Tenor", axisColors.x, 16);
+  xLabel.position.copy(xEnd).add(new THREE.Vector3(labelOffset, 0, 0));
+  group.add(xLabel);
+
+  const yLabel = createTextSprite("Expiry", axisColors.y, 16);
+  yLabel.position.copy(yEnd).add(new THREE.Vector3(0, labelOffset, 0));
+  group.add(yLabel);
+
+  const zLabel = createTextSprite("Value", axisColors.z, 16);
+  zLabel.position.copy(zEnd).add(new THREE.Vector3(0, 0, labelOffset));
+  group.add(zLabel);
+
+  return group;
+};
+
+const disposeAxesGroup = (group: THREE.Group) => {
+  group.traverse((child) => {
+    if (child instanceof THREE.Line) {
+      child.geometry.dispose();
+      const material = child.material as THREE.Material;
+      material.dispose();
+    }
+    if (child instanceof THREE.Sprite) {
+      const material = child.material as THREE.SpriteMaterial;
+      material.map?.dispose();
+      material.dispose();
+    }
+  });
 };
 
 const createSurfaceRenderer = (
@@ -120,7 +291,7 @@ const createSurfaceRenderer = (
   controls.zoomSpeed = 0.9;
   controls.panSpeed = 0.8;
 
-  const geometry = buildSurfaceGeometry(surface);
+  const { geometry, bounds, center } = buildSurfaceGeometry(surface);
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     side: THREE.DoubleSide,
@@ -129,6 +300,8 @@ const createSurfaceRenderer = (
   });
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
+  const axesGroup = buildAxesGroup(bounds, center);
+  scene.add(axesGroup);
 
   scene.add(new THREE.AmbientLight("#ffffff", 0.6));
   const directionalLight = new THREE.DirectionalLight("#ffffff", 0.6);
@@ -164,6 +337,7 @@ const createSurfaceRenderer = (
     camera,
     controls,
     mesh,
+    axesGroup,
     container,
     resizeObserver,
   };
@@ -184,6 +358,7 @@ export const renderSurfaceChart = async (
     existing.resizeObserver.disconnect();
     existing.controls.dispose();
     existing.renderer.dispose();
+    disposeAxesGroup(existing.axesGroup);
     existing.container.innerHTML = "";
     surfaceRenderers.delete(divId);
   }
@@ -198,6 +373,7 @@ export const renderSurfaceChart = async (
       renderer.renderer.dispose();
       renderer.mesh.geometry.dispose();
       renderer.mesh.material.dispose();
+      disposeAxesGroup(renderer.axesGroup);
       renderer.container.innerHTML = "";
       surfaceRenderers.delete(divId);
     },
@@ -215,9 +391,13 @@ export const updateSurfaceChart = async (
     return;
   }
 
-  const nextGeometry = buildSurfaceGeometry(surface);
+  const { geometry: nextGeometry, bounds, center } = buildSurfaceGeometry(surface);
   renderer.mesh.geometry.dispose();
   renderer.mesh.geometry = nextGeometry;
+  renderer.scene.remove(renderer.axesGroup);
+  disposeAxesGroup(renderer.axesGroup);
+  renderer.axesGroup = buildAxesGroup(bounds, center);
+  renderer.scene.add(renderer.axesGroup);
   renderer.renderer.render(renderer.scene, renderer.camera);
 };
 
