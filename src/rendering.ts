@@ -313,6 +313,18 @@ const createSurfaceRenderer = (
     TWO: THREE.TOUCH.ROTATE,
   };
 
+  // Explicitly listen to wheel events for horizontal scrolling
+  const onWheel = (event: WheelEvent) => {
+    // If there is significant horizontal delta and it's not mostly vertical
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      // Manually rotate the camera horizontally
+      const rotateAngle =
+        2 * Math.PI * (event.deltaX / container.clientWidth) * controls.rotateSpeed;
+      controls.rotateLeft(rotateAngle);
+    }
+  };
+  renderer.domElement.addEventListener("wheel", onWheel, { passive: true });
+
   // Ensure vertical rotation is not restricted
   controls.minPolarAngle = 0;
   controls.maxPolarAngle = Math.PI;
