@@ -150,7 +150,11 @@ const createTextSprite = (label: string, color: string, fontSize = 20) => {
   return sprite;
 };
 
-const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
+const buildAxesGroup = (
+  bounds: SurfaceBounds,
+  center: THREE.Vector3,
+  surface: SurfaceData
+) => {
   const group = new THREE.Group();
   group.name = "axes";
   const axisColors = {
@@ -172,7 +176,11 @@ const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
     center
   );
 
-  const lineForPoints = (start: THREE.Vector3, end: THREE.Vector3, color: string) => {
+  const lineForPoints = (
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+    color: string
+  ) => {
     const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
     const material = new THREE.LineBasicMaterial({ color });
     return new THREE.Line(geometry, material);
@@ -182,7 +190,10 @@ const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
   group.add(lineForPoints(origin, yEnd, axisColors.y));
   group.add(lineForPoints(origin, zEnd, axisColors.z));
 
-  const tickCount = 4;
+  const xTickCount = surface.xValues.length;
+  const yTickCount = surface.yValues.length;
+  const zTickCount = 4;
+
   const tickSize = Math.max(
     (bounds.xMax - bounds.xMin) * 0.02,
     (bounds.yMax - bounds.yMin) * 0.02,
@@ -200,8 +211,10 @@ const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
     axis: "x" | "y" | "z"
   ) => {
     const delta = new THREE.Vector3().subVectors(end, start);
-    const step = delta.clone().divideScalar(tickCount);
-    for (let i = 1; i <= tickCount; i += 1) {
+    const count = axis === "x" ? xTickCount : axis === "y" ? yTickCount : zTickCount;
+    const step = delta.clone().divideScalar(count - 1 || 1);
+
+    for (let i = 0; i < count; i += 1) {
       const tickStart = new THREE.Vector3()
         .copy(start)
         .add(step.clone().multiplyScalar(i));
@@ -215,23 +228,31 @@ const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
       }
       group.add(lineForPoints(tickStart, tickEnd, axisColors[axis]));
 
-      const labelValue =
-        axis === "x"
-          ? bounds.xMin + ((bounds.xMax - bounds.xMin) * i) / tickCount
-          : axis === "y"
-            ? bounds.yMin + ((bounds.yMax - bounds.yMin) * i) / tickCount
-            : (bounds.zMin + ((bounds.zMax - bounds.zMin) * i) / tickCount) / Z_SCALE;
-      const tickLabel = createTextSprite(
-        formatTickLabel(labelValue),
-        axisColors[axis],
-        14
-      );
+      let label = "";
       if (axis === "x") {
-        tickLabel.position.copy(tickEnd).add(new THREE.Vector3(0, -tickSize * 1.5, 0));
+        label = surface.tenorLabels[i];
       } else if (axis === "y") {
-        tickLabel.position.copy(tickEnd).add(new THREE.Vector3(-tickSize * 1.5, 0, 0));
+        label = surface.expiryLabels[i];
       } else {
-        tickLabel.position.copy(tickEnd).add(new THREE.Vector3(-tickSize * 1.5, 0, 0));
+        const labelValue =
+          (bounds.zMin + ((bounds.zMax - bounds.zMin) * i) / (count - 1 || 1)) /
+          Z_SCALE;
+        label = formatTickLabel(labelValue);
+      }
+
+      const tickLabel = createTextSprite(label, axisColors[axis], 14);
+      if (axis === "x") {
+        tickLabel.position
+          .copy(tickEnd)
+          .add(new THREE.Vector3(0, -tickSize * 1.5, 0));
+      } else if (axis === "y") {
+        tickLabel.position
+          .copy(tickEnd)
+          .add(new THREE.Vector3(-tickSize * 1.5, 0, 0));
+      } else {
+        tickLabel.position
+          .copy(tickEnd)
+          .add(new THREE.Vector3(-tickSize * 1.5, 0, 0));
       }
       group.add(tickLabel);
     }
@@ -340,7 +361,7 @@ const createSurfaceRenderer = (
   });
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
-  const axesGroup = buildAxesGroup(bounds, center);
+  const axesGroup = buildAxesGroup(bounds, center, surface);
   scene.add(axesGroup);
 
   scene.add(new THREE.AmbientLight("#ffffff", 0.6));
@@ -440,7 +461,7 @@ export const updateSurfaceChart = async (
   renderer.mesh.geometry = nextGeometry;
   renderer.scene.remove(renderer.axesGroup);
   disposeAxesGroup(renderer.axesGroup);
-  renderer.axesGroup = buildAxesGroup(bounds, center);
+  renderer.axesGroup = buildAxesGroup(bounds, center, surface);
   renderer.scene.add(renderer.axesGroup);
   // Manual render is not strictly necessary due to animate loop, but helps immediate feedback
   renderer.renderer.render(renderer.scene, renderer.camera);
