@@ -323,22 +323,13 @@ const createSurfaceRenderer = (
   container.innerHTML = "";
   container.appendChild(renderer.domElement);
 
-  const render = () => {
-    controls.update();
-    renderer.render(scene, camera);
-  };
-
   let animationFrameId: number;
   const animate = () => {
     animationFrameId = requestAnimationFrame(animate);
-    if (controls.enableDamping) {
-      controls.update();
-    }
+    controls.update();
     renderer.render(scene, camera);
   };
   animate();
-
-  controls.addEventListener("change", render);
 
   const resizeObserver = new ResizeObserver(() => {
     const { clientWidth, clientHeight } = container;
@@ -348,11 +339,10 @@ const createSurfaceRenderer = (
     renderer.setSize(clientWidth, clientHeight);
     camera.aspect = clientWidth / clientHeight;
     camera.updateProjectionMatrix();
-    render();
   });
   resizeObserver.observe(container);
 
-  render();
+  renderer.render(scene, camera);
 
   return {
     renderer,
@@ -424,6 +414,7 @@ export const updateSurfaceChart = async (
   disposeAxesGroup(renderer.axesGroup);
   renderer.axesGroup = buildAxesGroup(bounds, center);
   renderer.scene.add(renderer.axesGroup);
+  // Manual render is not strictly necessary due to animate loop, but helps immediate feedback
   renderer.renderer.render(renderer.scene, renderer.camera);
 };
 
