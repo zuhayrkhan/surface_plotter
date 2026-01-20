@@ -9,11 +9,9 @@ import {
 } from "./domain";
 import { extractXSlice, extractYSlice } from "./slices";
 import {
-  PlotlyHost,
   renderDataPreview,
   renderSliceChart,
   renderSurfaceChart,
-  SurfaceViewState,
   updateSurfaceChart,
   updateSliceChart,
 } from "./rendering";
@@ -38,13 +36,11 @@ const initialize = async () => {
     xIndex: initialX,
     yIndex: initialY,
   });
-  let surfaceViewState: SurfaceViewState = {};
-  const surfaceHost = (await renderSurfaceChart(
+  await renderSurfaceChart(
     "surface3d",
     extractSurfaceWindow(surface, selectionState),
-    selectionState,
-    surfaceViewState
-  )) as PlotlyHost;
+    selectionState
+  );
   const initialXSlice = extractXSlice(surface, selectionState.xIndex);
   const initialYSlice = extractYSlice(surface, selectionState.yIndex);
 
@@ -69,7 +65,6 @@ const initialize = async () => {
     updateReadout(xSlice.fixedIndex, ySlice.fixedIndex);
   };
 
-  let selectionDrivenAxisUpdate = false;
   const updateSelectionState = async (nextSelection: SelectionState) => {
     const previousSelection = selectionState;
     selectionState = clampSelectionState(surface, nextSelection);
@@ -79,16 +74,11 @@ const initialize = async () => {
       selectionState.yMin !== previousSelection.yMin ||
       selectionState.yMax !== previousSelection.yMax;
     if (windowChanged) {
-      selectionDrivenAxisUpdate = true;
       await updateSurfaceChart(
         "surface3d",
         extractSurfaceWindow(surface, selectionState),
-        selectionState,
-        surfaceViewState
+        selectionState
       );
-      requestAnimationFrame(() => {
-        selectionDrivenAxisUpdate = false;
-      });
     }
     if (
       selectionState.xIndex !== previousSelection.xIndex ||
@@ -120,46 +110,6 @@ const initialize = async () => {
 
   xSliceInput.addEventListener("input", handleSliderChange);
   ySliceInput.addEventListener("input", handleSliderChange);
-
-  let ignoreNextSurfaceClick = false;
-  surfaceHost.on("plotly_relayout", (event) => {
-    const payload = event as Record<string, unknown>;
-    const camera = payload["scene.camera"];
-    if (camera && typeof camera === "object") {
-      surfaceViewState = {
-        ...surfaceViewState,
-        camera: camera as SurfaceViewState["camera"],
-      };
-    }
-    const hasAxisChange = Object.keys(payload).some(
-      (key) => key.startsWith("scene.xaxis") || key.startsWith("scene.yaxis")
-    );
-    if (hasAxisChange && !selectionDrivenAxisUpdate) {
-      // Ignore user-driven axis relayouts for selection updates.
-    }
-    const hasCameraChange = Object.keys(payload).some((key) =>
-      key.startsWith("scene.camera")
-    );
-    if (hasCameraChange) {
-      ignoreNextSurfaceClick = true;
-      requestAnimationFrame(() => {
-        ignoreNextSurfaceClick = false;
-      });
-    }
-  });
-
-  surfaceHost.on("plotly_click", (event) => {
-    if (ignoreNextSurfaceClick) {
-      ignoreNextSurfaceClick = false;
-      return;
-    }
-    const payload = event as { points?: Array<{ x: number; y: number }> };
-    const point = payload.points?.[0];
-    if (!point) {
-      return;
-    }
-    void updateSelectionFromUserInput(Math.round(point.x), Math.round(point.y));
-  });
 
   updateReadout(selectionState.xIndex, selectionState.yIndex);
 };
