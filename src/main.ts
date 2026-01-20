@@ -31,11 +31,11 @@ const initialize = async () => {
 
   const initialX = 3;
   const initialY = 2;
-  let selectionState: SelectionState = clampSelectionState(surface, {
+  let selectionState: SelectionState = {
     ...fullSelection,
     xIndex: initialX,
     yIndex: initialY,
-  });
+  };
   await renderSurfaceChart(
     "surface3d",
     extractSurfaceWindow(surface, selectionState),
@@ -141,15 +141,12 @@ const initialize = async () => {
   };
 
   const updateSelectionFromUserInput = async (xIndex: number, yIndex: number) => {
-    const focusPadding = 1;
+    // Sliders only update the active cross-section slices, 
+    // they don't force a change to the 3D zoom window.
     await updateSelectionState({
       ...selectionState,
       xIndex,
       yIndex,
-      xMin: xIndex - focusPadding,
-      xMax: xIndex + focusPadding,
-      yMin: yIndex - focusPadding,
-      yMax: yIndex + focusPadding,
     });
   };
 
