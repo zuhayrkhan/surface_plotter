@@ -299,6 +299,20 @@ const createSurfaceRenderer = (
   controls.panSpeed = 0.8;
   controls.screenSpacePanning = true;
 
+  // Map mouse buttons to allow rotation with right-click/two-finger drag
+  // THREE.MOUSE.ROTATE is 0 (left), THREE.MOUSE.PAN is 2 (right), THREE.MOUSE.DOLLY is 1 (middle)
+  controls.mouseButtons = {
+    LEFT: THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.ROTATE,
+  };
+
+  // Map touch actions to allow rotation with two-finger drag
+  controls.touches = {
+    ONE: THREE.TOUCH.ROTATE,
+    TWO: THREE.TOUCH.ROTATE,
+  };
+
   // Ensure vertical rotation is not restricted
   controls.minPolarAngle = 0;
   controls.maxPolarAngle = Math.PI;
