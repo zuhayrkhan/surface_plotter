@@ -28,7 +28,7 @@ type SurfaceRenderer = {
   mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   axesGroup: THREE.Group;
   container: HTMLElement;
-  resizeObserver: ResizeObserver;
+  animationFrameId: number;
 };
 
 const surfaceRenderers = new Map<string, SurfaceRenderer>();
@@ -292,10 +292,16 @@ const createSurfaceRenderer = (
   camera.position.set(15, -20, 12);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = false;
-  controls.rotateSpeed = 0.8;
-  controls.zoomSpeed = 0.9;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.rotateSpeed = 1.0;
+  controls.zoomSpeed = 1.2;
   controls.panSpeed = 0.8;
+  controls.screenSpacePanning = true;
+
+  // Ensure vertical rotation is not restricted
+  controls.minPolarAngle = 0;
+  controls.maxPolarAngle = Math.PI;
 
   const { geometry, bounds, center } = buildSurfaceGeometry(surface);
   const material = new THREE.MeshStandardMaterial({
@@ -318,8 +324,19 @@ const createSurfaceRenderer = (
   container.appendChild(renderer.domElement);
 
   const render = () => {
+    controls.update();
     renderer.render(scene, camera);
   };
+
+  let animationFrameId: number;
+  const animate = () => {
+    animationFrameId = requestAnimationFrame(animate);
+    if (controls.enableDamping) {
+      controls.update();
+    }
+    renderer.render(scene, camera);
+  };
+  animate();
 
   controls.addEventListener("change", render);
 
@@ -346,6 +363,7 @@ const createSurfaceRenderer = (
     axesGroup,
     container,
     resizeObserver,
+    animationFrameId,
   };
 };
 
@@ -361,6 +379,7 @@ export const renderSurfaceChart = async (
 
   const existing = surfaceRenderers.get(divId);
   if (existing) {
+    cancelAnimationFrame(existing.animationFrameId);
     existing.resizeObserver.disconnect();
     existing.controls.dispose();
     existing.renderer.dispose();
@@ -374,6 +393,7 @@ export const renderSurfaceChart = async (
 
   return {
     dispose: () => {
+      cancelAnimationFrame(renderer.animationFrameId);
       renderer.resizeObserver.disconnect();
       renderer.controls.dispose();
       renderer.renderer.dispose();
