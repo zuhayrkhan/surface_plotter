@@ -527,7 +527,7 @@ export const renderDataPreview = (
   }
 
   const rows = surface.expiryLabels.slice(0, maxRows);
-  const cols = surface.tenorLabels.slice(0, maxCols);
+  const cols = surface.strikeLabels.slice(0, maxCols);
 
   const table = document.createElement("table");
   table.className = "data-preview-table";
