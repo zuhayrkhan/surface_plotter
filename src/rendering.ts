@@ -289,6 +289,7 @@ const createSurfaceRenderer = (
     0.1,
     1000
   );
+  camera.up.set(0, 0, 1);
   camera.position.set(15, -20, 12);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -318,6 +319,7 @@ const createSurfaceRenderer = (
     // If there is significant horizontal delta and it's not mostly vertical
     if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
       // Manually rotate the camera horizontally
+      // OrbitControls.rotateLeft rotates around the 'up' axis (now Z)
       const rotateAngle =
         2 * Math.PI * (event.deltaX / container.clientWidth) * controls.rotateSpeed;
       controls.rotateLeft(rotateAngle);
