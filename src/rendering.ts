@@ -176,6 +176,9 @@ const buildAxesGroup = (
     center
   );
 
+  const deltaX = new THREE.Vector3().subVectors(xEnd, origin);
+  const deltaY = new THREE.Vector3().subVectors(yEnd, origin);
+
   const lineForPoints = (
     start: THREE.Vector3,
     end: THREE.Vector3,
@@ -228,6 +231,9 @@ const buildAxesGroup = (
       }
       group.add(lineForPoints(tickStart, tickEnd, axisColors[axis]));
 
+      // Skip the first label (at the origin) to avoid clashing where axes join
+      if (i === 0) continue;
+
       let label = "";
       if (axis === "x") {
         label = surface.strikeLabels[i];
@@ -263,12 +269,18 @@ const buildAxesGroup = (
   addTicks(origin, zEnd, "z");
 
   const labelOffset = tickSize * 2;
+  const titleZOffset = -tickSize * 4;
+
   const xLabel = createTextSprite("Strike", axisColors.x, 16);
-  xLabel.position.copy(xEnd).add(new THREE.Vector3(labelOffset, 0, 0));
+  xLabel.position
+    .copy(origin)
+    .add(new THREE.Vector3(deltaX.length() / 2, -labelOffset * 2, titleZOffset));
   group.add(xLabel);
 
   const yLabel = createTextSprite("Expiry", axisColors.y, 16);
-  yLabel.position.copy(yEnd).add(new THREE.Vector3(0, labelOffset, 0));
+  yLabel.position
+    .copy(origin)
+    .add(new THREE.Vector3(-labelOffset * 2, deltaY.length() / 2, titleZOffset));
   group.add(yLabel);
 
   const zLabel = createTextSprite("Value", axisColors.z, 16);
