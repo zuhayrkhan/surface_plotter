@@ -44,8 +44,60 @@ const initialize = async () => {
   const initialXSlice = extractXSlice(surface, selectionState.xIndex);
   const initialYSlice = extractYSlice(surface, selectionState.yIndex);
 
-  await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
-  await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
+  const sliceXHost = await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
+  const sliceYHost = await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
+
+  sliceXHost.on("plotly_relayout", (event: any) => {
+    const xRange0 = event["xaxis.range[0]"];
+    const xRange1 = event["xaxis.range[1]"];
+    const xRange = event["xaxis.range"];
+
+    if (xRange0 !== undefined && xRange1 !== undefined) {
+      void updateSelectionState({
+        ...selectionState,
+        yMin: xRange0,
+        yMax: xRange1,
+      });
+    } else if (Array.isArray(xRange)) {
+      void updateSelectionState({
+        ...selectionState,
+        yMin: xRange[0],
+        yMax: xRange[1],
+      });
+    } else if (event["xaxis.autorange"]) {
+      void updateSelectionState({
+        ...selectionState,
+        yMin: surface.yValues[0],
+        yMax: surface.yValues[surface.yValues.length - 1],
+      });
+    }
+  });
+
+  sliceYHost.on("plotly_relayout", (event: any) => {
+    const xRange0 = event["xaxis.range[0]"];
+    const xRange1 = event["xaxis.range[1]"];
+    const xRange = event["xaxis.range"];
+
+    if (xRange0 !== undefined && xRange1 !== undefined) {
+      void updateSelectionState({
+        ...selectionState,
+        xMin: xRange0,
+        xMax: xRange1,
+      });
+    } else if (Array.isArray(xRange)) {
+      void updateSelectionState({
+        ...selectionState,
+        xMin: xRange[0],
+        xMax: xRange[1],
+      });
+    } else if (event["xaxis.autorange"]) {
+      void updateSelectionState({
+        ...selectionState,
+        xMin: surface.xValues[0],
+        xMax: surface.xValues[surface.xValues.length - 1],
+      });
+    }
+  });
 
   const updateReadout = (xIndex: number, yIndex: number) => {
     sliceReadout.textContent = `Selected: ${surface.tenorLabels[xIndex]} / ${

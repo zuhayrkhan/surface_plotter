@@ -410,7 +410,6 @@ const buildSliceLayout = (slice: SliceData, axisTitle: string) => ({
   },
   yaxis: {
     title: {text: "Value (Z)"},
-    fixedrange: true,
   },
 });
 
@@ -429,11 +428,12 @@ export const renderSliceChart = async (
   axisTitle: string,
   lineColor: string
 ): Promise<PlotlyHost> => {
-  return (await Plotly.newPlot(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
+  const host = (await Plotly.newPlot(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
     responsive: true,
-    displayModeBar: false,
+    displayModeBar: true,
     modeBarButtonsToRemove: ["lasso2d", "select2d"],
   })) as PlotlyHost;
+  return host;
 };
 
 export const updateSliceChart = async (
@@ -444,7 +444,7 @@ export const updateSliceChart = async (
 ) => {
   await Plotly.react(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
     responsive: true,
-    displayModeBar: false,
+    displayModeBar: true,
     modeBarButtonsToRemove: ["lasso2d", "select2d"],
   });
 };
