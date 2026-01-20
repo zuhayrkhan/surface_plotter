@@ -1,11 +1,11 @@
 import {
   EXPIRY_LABELS,
   SelectionState,
-  TENOR_LABELS,
+  STRIKE_LABELS,
   clampSelectionState,
   createSelectionState,
   extractSurfaceWindow,
-  generateTenorSurface,
+  generateOptionSurface,
 } from "./domain";
 import { extractXSlice, extractYSlice } from "./slices";
 import {
@@ -17,7 +17,7 @@ import {
 } from "./rendering";
 
 const initialize = async () => {
-  const surface = generateTenorSurface(TENOR_LABELS, EXPIRY_LABELS);
+  const surface = generateOptionSurface(STRIKE_LABELS, EXPIRY_LABELS);
   const fullSelection = createSelectionState(surface);
 
   const xSliceInput = document.getElementById("xSlice") as HTMLInputElement;
@@ -45,7 +45,7 @@ const initialize = async () => {
   const initialYSlice = extractYSlice(surface, selectionState.yIndex);
 
   const sliceXHost = await renderSliceChart("sliceX", initialXSlice, "Expiry", "#38bdf8");
-  const sliceYHost = await renderSliceChart("sliceY", initialYSlice, "Tenor", "#f97316");
+  const sliceYHost = await renderSliceChart("sliceY", initialYSlice, "Strike", "#f97316");
 
   sliceXHost.on("plotly_relayout", (event: any) => {
     const xRange0 = event["xaxis.range[0]"];
@@ -100,7 +100,7 @@ const initialize = async () => {
   });
 
   const updateReadout = (xIndex: number, yIndex: number) => {
-    sliceReadout.textContent = `Selected: ${surface.tenorLabels[xIndex]} / ${
+    sliceReadout.textContent = `Selected: ${surface.strikeLabels[xIndex]} / ${
       surface.expiryLabels[yIndex]
     }`;
     xSliceInput.value = String(xIndex);
@@ -112,7 +112,7 @@ const initialize = async () => {
     const ySlice = extractYSlice(surface, yIndex);
 
     await updateSliceChart("sliceX", xSlice, "Expiry", "#38bdf8");
-    await updateSliceChart("sliceY", ySlice, "Tenor", "#f97316");
+    await updateSliceChart("sliceY", ySlice, "Strike", "#f97316");
 
     updateReadout(xSlice.fixedIndex, ySlice.fixedIndex);
   };

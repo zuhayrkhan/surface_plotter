@@ -230,7 +230,7 @@ const buildAxesGroup = (
 
       let label = "";
       if (axis === "x") {
-        label = surface.tenorLabels[i];
+        label = surface.strikeLabels[i];
       } else if (axis === "y") {
         label = surface.expiryLabels[i];
       } else {
@@ -263,7 +263,7 @@ const buildAxesGroup = (
   addTicks(origin, zEnd, "z");
 
   const labelOffset = tickSize * 2;
-  const xLabel = createTextSprite("Tenor", axisColors.x, 16);
+  const xLabel = createTextSprite("Strike", axisColors.x, 16);
   xLabel.position.copy(xEnd).add(new THREE.Vector3(labelOffset, 0, 0));
   group.add(xLabel);
 

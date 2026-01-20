@@ -1,5 +1,5 @@
 export type SurfaceData = {
-  tenorLabels: string[];
+  strikeLabels: string[];
   expiryLabels: string[];
   xValues: number[];
   yValues: number[];
@@ -15,46 +15,43 @@ export type SelectionState = {
   yIndex: number;
 };
 
-export const TENOR_LABELS = [
-  "1M",
-  "3M",
-  "6M",
-  "9M",
-  "1Y",
-  "2Y",
-  "3Y",
-  "5Y",
-  "7Y",
-  "10Y",
-  "20Y",
-  "30Y",
+export const STRIKE_LABELS = [
+  "80",
+  "85",
+  "90",
+  "95",
+  "100",
+  "105",
+  "110",
+  "115",
+  "120",
 ];
 
-export const EXPIRY_LABELS = ["1W", "1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y"];
+export const EXPIRY_LABELS = ["1M", "2M", "3M", "6M", "1Y", "2Y"];
 
-export const generateTenorSurface = (
-  tenors: string[],
+export const generateOptionSurface = (
+  strikes: string[],
   expiries: string[]
 ): SurfaceData => {
-  const xValues = tenors.map((_, index) => index);
+  const xValues = strikes.map((_, index) => index);
   const yValues = expiries.map((_, index) => index);
 
   const zValues = yValues.map((yIndex) =>
     xValues.map((xIndex) => {
-      const tenorFactor = 0.35 + xIndex / (xValues.length + 2);
+      const strikeFactor = 0.35 + xIndex / (xValues.length + 2);
       const expiryFactor = 0.25 + yIndex / (yValues.length + 1);
       return (
         0.2 +
         0.15 * Math.sin(xIndex * 0.6) +
         0.1 * Math.cos(yIndex * 0.5) +
-        0.25 * tenorFactor +
+        0.25 * strikeFactor +
         0.15 * expiryFactor
       );
     })
   );
 
   return {
-    tenorLabels: tenors,
+    strikeLabels: strikes,
     expiryLabels: expiries,
     xValues,
     yValues,
@@ -148,7 +145,7 @@ export const extractSurfaceWindow = (
 
   const xValues = fallbackX.map(({ value }) => value);
   const yValues = fallbackY.map(({ value }) => value);
-  const tenorLabels = fallbackX.map(({ index }) => surface.tenorLabels[index]);
+  const strikeLabels = fallbackX.map(({ index }) => surface.strikeLabels[index]);
   const expiryLabels = fallbackY.map(({ index }) => surface.expiryLabels[index]);
 
   const zValues = fallbackY.map(({ index: rowIndex }) =>
@@ -156,7 +153,7 @@ export const extractSurfaceWindow = (
   );
 
   return {
-    tenorLabels,
+    strikeLabels,
     expiryLabels,
     xValues,
     yValues,
