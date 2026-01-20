@@ -48,7 +48,7 @@ type SurfaceGeometryData = {
   center: THREE.Vector3;
 };
 
-const Z_SCALE = 5;
+const Z_SCALE = 15;
 
 const computeSurfaceBounds = (surface: SurfaceData): SurfaceBounds => {
   const zValues = surface.zValues.flat();
@@ -289,7 +289,7 @@ const createSurfaceRenderer = (
     0.1,
     1000
   );
-  camera.position.set(12, -15, 8);
+  camera.position.set(15, -20, 12);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = false;
@@ -311,7 +311,7 @@ const createSurfaceRenderer = (
 
   scene.add(new THREE.AmbientLight("#ffffff", 0.6));
   const directionalLight = new THREE.DirectionalLight("#ffffff", 0.6);
-  directionalLight.position.set(10, -10, 15);
+  directionalLight.position.set(15, -15, 25);
   scene.add(directionalLight);
 
   container.innerHTML = "";
