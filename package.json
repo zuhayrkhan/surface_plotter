@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "plotly.js-dist-min": "^2.35.2"
+    "plotly.js-dist-min": "^2.35.2",
+    "three": "^0.169.0"
   },
   "devDependencies": {
     "@types/plotly.js-dist-min": "^2.3.4",
