@@ -48,6 +48,8 @@ type SurfaceGeometryData = {
   center: THREE.Vector3;
 };
 
+const Z_SCALE = 5;
+
 const computeSurfaceBounds = (surface: SurfaceData): SurfaceBounds => {
   const zValues = surface.zValues.flat();
   const zMin = Math.min(...zValues);
@@ -58,8 +60,8 @@ const computeSurfaceBounds = (surface: SurfaceData): SurfaceBounds => {
     xMax: Math.max(...surface.xValues),
     yMin: Math.min(...surface.yValues),
     yMax: Math.max(...surface.yValues),
-    zMin,
-    zMax,
+    zMin: zMin * Z_SCALE,
+    zMax: zMax * Z_SCALE,
   };
 };
 
@@ -72,8 +74,12 @@ const buildSurfaceGeometry = (surface: SurfaceData): SurfaceGeometryData => {
   const colors = new Float32Array(vertexCount * 3);
   const indices: number[] = [];
 
+  const rawZValues = surface.zValues.flat();
+  const rawZMin = Math.min(...rawZValues);
+  const rawZMax = Math.max(...rawZValues);
+  const range = rawZMax - rawZMin || 1;
+
   const bounds = computeSurfaceBounds(surface);
-  const range = bounds.zMax - bounds.zMin || 1;
 
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
@@ -82,9 +88,9 @@ const buildSurfaceGeometry = (surface: SurfaceData): SurfaceGeometryData => {
       const zValue = surface.zValues[y][x];
       positions[positionOffset] = surface.xValues[x];
       positions[positionOffset + 1] = surface.yValues[y];
-      positions[positionOffset + 2] = zValue;
+      positions[positionOffset + 2] = zValue * Z_SCALE;
 
-      const normalized = (zValue - bounds.zMin) / range;
+      const normalized = (zValue - rawZMin) / range;
       const color = new THREE.Color();
       color.setHSL(0.65 - normalized * 0.55, 0.8, 0.55);
       colors[positionOffset] = color.r;
@@ -214,7 +220,7 @@ const buildAxesGroup = (bounds: SurfaceBounds, center: THREE.Vector3) => {
           ? bounds.xMin + ((bounds.xMax - bounds.xMin) * i) / tickCount
           : axis === "y"
             ? bounds.yMin + ((bounds.yMax - bounds.yMin) * i) / tickCount
-            : bounds.zMin + ((bounds.zMax - bounds.zMin) * i) / tickCount;
+            : (bounds.zMin + ((bounds.zMax - bounds.zMin) * i) / tickCount) / Z_SCALE;
       const tickLabel = createTextSprite(
         formatTickLabel(labelValue),
         axisColors[axis],
@@ -283,7 +289,7 @@ const createSurfaceRenderer = (
     0.1,
     1000
   );
-  camera.position.set(8, -10, 6);
+  camera.position.set(12, -15, 8);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = false;
@@ -305,7 +311,7 @@ const createSurfaceRenderer = (
 
   scene.add(new THREE.AmbientLight("#ffffff", 0.6));
   const directionalLight = new THREE.DirectionalLight("#ffffff", 0.6);
-  directionalLight.position.set(6, -6, 8);
+  directionalLight.position.set(10, -10, 15);
   scene.add(directionalLight);
 
   container.innerHTML = "";
