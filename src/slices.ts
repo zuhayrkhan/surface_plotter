@@ -20,7 +20,7 @@ export const extractXSlice = (surface: SurfaceData, xIndex: number): SliceData =
     axisLabels: surface.expiryLabels,
     zValues,
     fixedIndex: clampedIndex,
-    fixedLabel: surface.tenorLabels[clampedIndex],
+    fixedLabel: surface.strikeLabels[clampedIndex],
   };
 };
 
@@ -30,7 +30,7 @@ export const extractYSlice = (surface: SurfaceData, yIndex: number): SliceData =
 
   return {
     axisValues: surface.xValues,
-    axisLabels: surface.tenorLabels,
+    axisLabels: surface.strikeLabels,
     zValues,
     fixedIndex: clampedIndex,
     fixedLabel: surface.expiryLabels[clampedIndex],
