@@ -518,18 +518,26 @@ export const renderSliceChart = async (
       {
         responsive: true,
         displayModeBar: true,
-        modeBarButtonsToRemove: ["lasso2d", "select2d"],
+        modeBarButtonsToRemove: [
+          "lasso2d",
+          "select2d",
+          "pan2d",
+          "zoomIn2d",
+          "zoomOut2d",
+          "autoScale2d",
+          "resetScale2d",
+        ],
       }
   )) as PlotlyHost;
   return host;
 };
 
 export const updateSliceChart = async (
-  divId: string,
-  slice: SliceData,
-  axisTitle: string,
-  fixedAxisTitle: string,
-  lineColor: string
+    divId: string,
+    slice: SliceData,
+    axisTitle: string,
+    fixedAxisTitle: string,
+    lineColor: string
 ) => {
   // Use Plotly.react to update the chart. It's more efficient than newPlot
   // and preserves event listeners attached to the container.
@@ -540,7 +548,15 @@ export const updateSliceChart = async (
       {
         responsive: true,
         displayModeBar: true,
-        modeBarButtonsToRemove: ["lasso2d", "select2d"],
+        modeBarButtonsToRemove: [
+          "lasso2d",
+          "select2d",
+          "pan2d",
+          "zoomIn2d",
+          "zoomOut2d",
+          "autoScale2d",
+          "resetScale2d",
+        ],
       }
   );
 };
