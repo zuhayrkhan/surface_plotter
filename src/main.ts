@@ -73,6 +73,16 @@ const initialize = async () => {
     }
   });
 
+  sliceXHost.on("plotly_click", (data: any) => {
+    if (data.points && data.points.length > 0) {
+      const clickedYIndex = data.points[0].pointIndex;
+      void updateSelectionState({
+        ...selectionState,
+        yIndex: clickedYIndex,
+      });
+    }
+  });
+
   sliceYHost.on("plotly_relayout", (event: any) => {
     const xRange0 = event["xaxis.range[0]"];
     const xRange1 = event["xaxis.range[1]"];
@@ -95,6 +105,16 @@ const initialize = async () => {
         ...selectionState,
         xMin: surface.xValues[0],
         xMax: surface.xValues[surface.xValues.length - 1],
+      });
+    }
+  });
+
+  sliceYHost.on("plotly_click", (data: any) => {
+    if (data.points && data.points.length > 0) {
+      const clickedXIndex = data.points[0].pointIndex;
+      void updateSelectionState({
+        ...selectionState,
+        xIndex: clickedXIndex,
       });
     }
   });
