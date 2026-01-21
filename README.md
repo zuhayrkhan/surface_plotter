@@ -2,17 +2,12 @@
 
 This app is static content once built, so you can open it locally without hosting it anywhere. Run a one-time build and then open `dist/index.html` directly in your browser.
 
-## UI Preview (inline frame)
+## UI Preview
 
-> Note: GitHub does not render iframes in README files. To see the live UI in this frame, open this README locally.
+GitHub README files do not render live HTML/JS embeds (like iframes or scripts). The only options that render in GitHub are static images or links.
 
-<iframe
-  src="index.html"
-  title="Surface Plotter"
-  width="100%"
-  height="720"
-  style="border: 1px solid #2b3445; border-radius: 8px;"
-></iframe>
+- Open the app locally: build the project and open `dist/index.html`.
+- Or open the source HTML directly from the repo: [`index.html`](index.html).
 
 ## Build for static use
 
