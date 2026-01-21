@@ -1,9 +1,9 @@
 import Plotly from "plotly.js-dist-min";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import {OrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
 
-import { SelectionState, SurfaceData } from "./domain";
-import { SliceData } from "./slices";
+import {SelectionState, SurfaceData} from "./domain";
+import {SliceData} from "./slices";
 
 export type PlotlyHost = HTMLElement & {
   on: (event: string, handler: (event: unknown) => void) => void;
@@ -479,8 +479,12 @@ export const updateSurfaceChart = async (
   renderer.renderer.render(renderer.scene, renderer.camera);
 };
 
-const buildSliceLayout = (slice: SliceData, axisTitle: string) => ({
+const buildSliceLayout = (slice: SliceData, axisTitle: string, fixedAxisTitle: string) => ({
   ...baseLayout,
+  title: {
+    text: `${fixedAxisTitle}: ${slice.fixedLabel}`,
+    font: {size: 14},
+  },
   xaxis: {
     title: {text: axisTitle},
     tickvals: slice.axisValues,
@@ -504,13 +508,19 @@ export const renderSliceChart = async (
   divId: string,
   slice: SliceData,
   axisTitle: string,
+  fixedAxisTitle: string,
   lineColor: string
 ): Promise<PlotlyHost> => {
-  const host = (await Plotly.newPlot(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
-    responsive: true,
-    displayModeBar: true,
-    modeBarButtonsToRemove: ["lasso2d", "select2d"],
-  })) as PlotlyHost;
+  const host = (await Plotly.newPlot(
+      divId,
+      [buildSliceTrace(slice, lineColor)],
+      buildSliceLayout(slice, axisTitle, fixedAxisTitle),
+      {
+        responsive: true,
+        displayModeBar: true,
+        modeBarButtonsToRemove: ["lasso2d", "select2d"],
+      }
+  )) as PlotlyHost;
   return host;
 };
 
@@ -518,13 +528,21 @@ export const updateSliceChart = async (
   divId: string,
   slice: SliceData,
   axisTitle: string,
+  fixedAxisTitle: string,
   lineColor: string
 ) => {
-  await Plotly.react(divId, [buildSliceTrace(slice, lineColor)], buildSliceLayout(slice, axisTitle), {
-    responsive: true,
-    displayModeBar: true,
-    modeBarButtonsToRemove: ["lasso2d", "select2d"],
-  });
+  // Use Plotly.react to update the chart. It's more efficient than newPlot
+  // and preserves event listeners attached to the container.
+  await Plotly.react(
+      divId,
+      [buildSliceTrace(slice, lineColor)],
+      buildSliceLayout(slice, axisTitle, fixedAxisTitle),
+      {
+        responsive: true,
+        displayModeBar: true,
+        modeBarButtonsToRemove: ["lasso2d", "select2d"],
+      }
+  );
 };
 
 export const renderDataPreview = (

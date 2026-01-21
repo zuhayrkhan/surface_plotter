@@ -38,14 +38,18 @@ export const generateOptionSurface = (
 
   const zValues = yValues.map((yIndex) =>
     xValues.map((xIndex) => {
-      const strikeFactor = 0.35 + xIndex / (xValues.length + 2);
-      const expiryFactor = 0.25 + yIndex / (yValues.length + 1);
+      // Create more significant variation across both axes
+      const strikeFactor = xIndex / xValues.length;
+      const expiryFactor = yIndex / yValues.length;
+
+      // A more dynamic surface: Z = f(strike, expiry)
+      // We use sine and cosine with different frequencies and amplitudes
+      // to ensure that changing one index results in a noticeably different 1D slice.
       return (
-        0.2 +
-        0.15 * Math.sin(xIndex * 0.6) +
-        0.1 * Math.cos(yIndex * 0.5) +
-        0.25 * strikeFactor +
-        0.15 * expiryFactor
+          0.3 +
+          0.2 * Math.sin(strikeFactor * Math.PI * 2) * Math.cos(expiryFactor * Math.PI) +
+          0.15 * expiryFactor -
+          0.1 * strikeFactor
       );
     })
   );
