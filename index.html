@@ -64,6 +64,16 @@
       input[type="range"] {
         width: 180px;
       }
+
+      /* Make axis labels look clickable */
+      .chart-host .xtick text,
+      .chart-host .ytick text,
+      .chart-host .xtick tspan,
+      .chart-host .ytick tspan,
+      .chart-host .point {
+        cursor: pointer !important;
+        pointer-events: all !important;
+      }
     </style>
   </head>
   <body>

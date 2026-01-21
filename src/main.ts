@@ -1,19 +1,19 @@
 import {
-  EXPIRY_LABELS,
-  SelectionState,
-  STRIKE_LABELS,
   clampSelectionState,
   createSelectionState,
+  EXPIRY_LABELS,
   extractSurfaceWindow,
   generateOptionSurface,
+  SelectionState,
+  STRIKE_LABELS,
 } from "./domain";
-import { extractXSlice, extractYSlice } from "./slices";
+import {extractXSlice, extractYSlice} from "./slices";
 import {
   renderDataPreview,
   renderSliceChart,
   renderSurfaceChart,
-  updateSurfaceChart,
   updateSliceChart,
+  updateSurfaceChart,
 } from "./rendering";
 
 const initialize = async () => {
@@ -105,44 +105,53 @@ const initialize = async () => {
   });
 
   // Listen for clicks on axis labels (DOM based)
-  const addAxisLabelClickListener = (host: HTMLElement, labels: string[], callback: (index: number) => void) => {
-    host.addEventListener("click", (event) => {
-      let target = event.target as HTMLElement;
-      
-      // Plotly labels are often inside <text> or <tspan> elements within <g class="xtick"> or <g class="ytick">
-      // We search up the tree slightly or check the target itself
-      const findTextContent = (el: HTMLElement | null): string | null => {
-        if (!el) return null;
-        if (el.tagName === "text" || el.tagName === "tspan") return el.textContent?.trim() || null;
-        return null;
-      };
+  const addAxisLabelListeners = (host: HTMLElement, labels: string[], callback: (index: number) => void, resetCallback: () => void) => {
+    // We use 'mousedown' which is often more reliable than 'click' for elements inside Plotly
+    host.addEventListener("mousedown", (event) => {
+      const target = event.target as SVGElement;
 
-      const textContent = findTextContent(target);
+      // Detailed debug logging to understand what is being hit in the user's browser
+      console.log(`[DEBUG_LOG] Element mousedown: <${target.tagName}> class="${target.getAttribute('class')}" content="${target.textContent}"`);
+
+      // 1. Direct hit on text or tspan
+      let textContent = "";
+      if (target.tagName === "text" || target.tagName === "tspan") {
+        textContent = target.textContent?.trim() || "";
+      } else {
+        // 2. Check if we hit a group that contains text (like xtick/ytick)
+        const tickGroup = target.closest('.xtick, .ytick');
+        if (tickGroup) {
+          const textEl = tickGroup.querySelector('text');
+          textContent = textEl?.textContent?.trim() || "";
+        }
+      }
+
       if (textContent) {
         const index = labels.indexOf(textContent);
         if (index !== -1) {
-          console.log(`[DEBUG_LOG] Axis label detected: ${textContent}, Index: ${index}`);
+          console.log(`[DEBUG_LOG] Match found! Label: ${textContent}, Index: ${index}`);
           callback(index);
           return;
         }
       }
-      
-      // Fallback: check children if a tick group was clicked
-      if (target.tagName === "g") {
-        const textEl = target.querySelector("text");
-        if (textEl && textEl.textContent) {
-          const index = labels.indexOf(textEl.textContent.trim());
-          if (index !== -1) {
-            callback(index);
-          }
+    }, true);
+
+    host.addEventListener("dblclick", (event) => {
+      const target = event.target as HTMLElement;
+      // More inclusive check for axis area
+      if (target.closest(".axis") || target.closest(".xtick") || target.closest(".ytick") || target.closest(".main-svg")) {
+        // If it's not a point, it might be the background or axis
+        if (!target.classList.contains('point')) {
+          console.log(`[DEBUG_LOG] Area double-clicked. Resetting.`);
+          resetCallback();
         }
       }
-    });
+    }, true);
   };
 
-  addAxisLabelClickListener(sliceXHost, surface.expiryLabels, (index) => {
+  addAxisLabelListeners(sliceXHost, surface.expiryLabels, (index) => {
     void updateSelectionState({ ...selectionState, yIndex: index });
-  });
+  }, () => void updateSelectionState(INITIAL_SELECTION));
 
   sliceYHost.on("plotly_relayout", (event: any) => {
     const xRange0 = event["xaxis.range[0]"];
@@ -188,9 +197,9 @@ const initialize = async () => {
     }
   });
 
-  addAxisLabelClickListener(sliceYHost, surface.strikeLabels, (index) => {
+  addAxisLabelListeners(sliceYHost, surface.strikeLabels, (index) => {
     void updateSelectionState({ ...selectionState, xIndex: index });
-  });
+  }, () => void updateSelectionState(INITIAL_SELECTION));
 
   const updateReadout = (xIndex: number, yIndex: number) => {
     sliceReadout.textContent = `Selected: ${surface.strikeLabels[xIndex]} / ${
