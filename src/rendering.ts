@@ -311,9 +311,10 @@ const createSurfaceRenderer = (
 ): SurfaceRenderer => {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.domElement.style.width = "100%";
-  renderer.domElement.style.height = "100%";
+  renderer.setSize(container.clientWidth, container.clientHeight, true);
+  renderer.domElement.style.position = "absolute";
+  renderer.domElement.style.top = "0";
+  renderer.domElement.style.left = "0";
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#1a1f2b");
@@ -449,17 +450,18 @@ export const resizeSurfaceChart = (divId: string) => {
 
   // Use getBoundingClientRect for absolute precision
   const rect = container.getBoundingClientRect();
-  const width = rect.width;
-  const height = rect.height;
+  const width = Math.floor(rect.width);
+  const height = Math.floor(rect.height);
 
   const debugLabel = document.getElementById("debugSize");
   if (debugLabel) {
-    debugLabel.textContent = `Size: ${Math.round(width)} x ${Math.round(height)} (Rect)`;
+    debugLabel.textContent = `Size: ${width} x ${height} (Forced)`;
   }
 
   if (width === 0 || height === 0) return;
 
-  threeRenderer.setSize(width, height, false);
+  // IMPORTANT: Set updateStyle to true to let Three.js manage the canvas CSS
+  threeRenderer.setSize(width, height, true);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   controls.update();
