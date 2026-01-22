@@ -13,9 +13,9 @@
       }
       .layout {
         display: grid;
-        grid-template-columns: 2fr 1fr;
+          grid-template-columns: 2fr 8px 1fr;
         grid-template-rows: auto 1fr;
-        gap: 12px;
+          gap: 0;
         padding: 16px;
         height: 100vh;
         box-sizing: border-box;
@@ -25,6 +25,30 @@
         display: flex;
         gap: 16px;
         align-items: center;
+          margin-bottom: 12px;
+      }
+
+      .resizer {
+          grid-column: 2;
+          width: 8px;
+          cursor: col-resize;
+          background: #0f1116;
+          transition: background 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+      }
+
+      .resizer:hover, .resizer.dragging {
+          background: #2b3445;
+      }
+
+      .resizer::after {
+          content: "";
+          width: 2px;
+          height: 30px;
+          background: #2b3445;
+          border-radius: 2px;
       }
       .panel {
         background: #1a1f2b;
@@ -33,6 +57,18 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+          min-width: 100px;
+          overflow: hidden;
+      }
+
+      .panel-3d {
+          grid-column: 1;
+          margin-right: 4px;
+      }
+
+      .panel-slices {
+          grid-column: 3;
+          margin-left: 4px;
       }
       .data-preview {
         font-size: 12px;
@@ -89,11 +125,12 @@
         </label>
         <span id="sliceReadout"></span>
       </div>
-      <div class="panel">
+        <div class="panel panel-3d">
         <strong>3D Option Surface</strong>
         <div id="surface3d" class="chart-host"></div>
       </div>
-      <div class="panel">
+        <div id="layoutResizer" class="resizer"></div>
+        <div class="panel panel-slices">
         <strong>X Slice (Strike)</strong>
         <div id="sliceX" class="chart-host"></div>
         <strong>Y Slice (Expiry)</strong>

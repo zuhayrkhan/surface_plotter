@@ -1,3 +1,4 @@
+import Plotly from "plotly.js-dist-min";
 import {
   clampSelectionState,
   createSelectionState,
@@ -264,6 +265,51 @@ const initialize = async () => {
 
   xSliceInput.addEventListener("input", handleSliderChange);
   ySliceInput.addEventListener("input", handleSliderChange);
+
+  // Layout Resizer Implementation
+  const layout = document.querySelector(".layout") as HTMLElement;
+  const resizer = document.getElementById("layoutResizer") as HTMLElement;
+  let isDragging = false;
+
+  resizer.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    resizer.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    e.preventDefault();
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+
+    // Calculate the percentage width for the left panel
+    const containerWidth = layout.clientWidth;
+    const padding = 16; // layout padding
+    const relativeX = e.clientX - padding;
+    const percentage = (relativeX / (containerWidth - padding * 2)) * 100;
+
+    // Clamp between 20% and 80%
+    const clampedPercentage = Math.min(Math.max(percentage, 20), 80);
+
+    layout.style.gridTemplateColumns = `${clampedPercentage}% 8px 1fr`;
+
+    // Explicitly tell Plotly to resize.
+    const sliceX = document.getElementById("sliceX");
+    const sliceY = document.getElementById("sliceY");
+    if (sliceX) Plotly.Plots.resize(sliceX);
+    if (sliceY) Plotly.Plots.resize(sliceY);
+
+    // Force a window resize event to trigger the 3D renderer's ResizeObserver
+    // and Plotly's internal responsive logic.
+    window.dispatchEvent(new Event("resize"));
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (isDragging) {
+      isDragging = false;
+      resizer.classList.remove("dragging");
+      document.body.style.cursor = "";
+    }
+  });
 
   updateReadout(selectionState.xIndex, selectionState.yIndex);
 };
