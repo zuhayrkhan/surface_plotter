@@ -281,6 +281,8 @@ const initialize = async () => {
     e.preventDefault();
   });
 
+  let resizeRafId: number | null = null;
+
   window.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
 
@@ -293,19 +295,26 @@ const initialize = async () => {
     // Clamp between 20% and 80%
     const clampedPercentage = Math.min(Math.max(percentage, 20), 80);
 
+    // 1. Instantly update the CSS grid layout
     layout.style.gridTemplateColumns = `${clampedPercentage}% 8px 1fr`;
 
-    // 1. Manually trigger the 3D resize
-    resizeSurfaceChart("surface3d");
+    // 2. Schedule the chart reflows for the next animation frame
+    // This ensures the browser has recalculated the div sizes before we measure them
+    if (resizeRafId) cancelAnimationFrame(resizeRafId);
 
-    // 2. Explicitly tell Plotly to resize.
-    const sliceX = document.getElementById("sliceX");
-    const sliceY = document.getElementById("sliceY");
-    if (sliceX) Plotly.Plots.resize(sliceX);
-    if (sliceY) Plotly.Plots.resize(sliceY);
+    resizeRafId = requestAnimationFrame(() => {
+      // Manually trigger the 3D resize logic that worked for initialization
+      // We pass the container ID explicitly
+      resizeSurfaceChart("surface3d");
 
-    // 3. Trigger a window resize as a catch-all
-    window.dispatchEvent(new Event("resize"));
+      // Explicitly tell Plotly to resize
+      const sliceX = document.getElementById("sliceX");
+      const sliceY = document.getElementById("sliceY");
+      if (sliceX) Plotly.Plots.resize(sliceX);
+      if (sliceY) Plotly.Plots.resize(sliceY);
+
+      resizeRafId = null;
+    });
   });
 
   window.addEventListener("mouseup", () => {
@@ -314,7 +323,11 @@ const initialize = async () => {
       resizer.classList.remove("dragging");
       document.body.style.cursor = "";
       // Ensure everything is perfectly sized once dragging stops
-      window.dispatchEvent(new Event("resize"));
+      resizeSurfaceChart("surface3d");
+      const sliceX = document.getElementById("sliceX");
+      const sliceY = document.getElementById("sliceY");
+      if (sliceX) Plotly.Plots.resize(sliceX);
+      if (sliceY) Plotly.Plots.resize(sliceY);
     }
   });
 

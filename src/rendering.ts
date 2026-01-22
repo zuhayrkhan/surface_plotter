@@ -407,17 +407,21 @@ const createSurfaceRenderer = (
   };
   animate();
 
+  // backup window listener
+  const onWindowResize = () => {
+    resizeSurfaceChart(container.id);
+  };
+  window.addEventListener("resize", onWindowResize);
+
   const resizeObserver = new ResizeObserver((entries) => {
     for (const entry of entries) {
       const {width, height} = entry.contentRect;
       if (width === 0 || height === 0) {
         continue;
       }
-      console.log(`[DEBUG_LOG] 3D Resize Event: ${width}x${height}`);
-      renderer.setSize(width, height, false); // false = don't update inline styles
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      controls.update();
+      console.log(`[DEBUG_LOG] 3D Resize Observer: ${width}x${height}`);
+      // Call the common resize logic
+      resizeSurfaceChart(container.id);
     }
   });
   resizeObserver.observe(container);
@@ -442,8 +446,16 @@ export const resizeSurfaceChart = (divId: string) => {
   if (!renderer) return;
 
   const {container, renderer: threeRenderer, camera, controls} = renderer;
-  const width = container.clientWidth;
-  const height = container.clientHeight;
+
+  // Use getBoundingClientRect for absolute precision
+  const rect = container.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+
+  const debugLabel = document.getElementById("debugSize");
+  if (debugLabel) {
+    debugLabel.textContent = `Size: ${Math.round(width)} x ${Math.round(height)} (Rect)`;
+  }
 
   if (width === 0 || height === 0) return;
 

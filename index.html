@@ -68,6 +68,21 @@
         margin-right: 4px;
         display: flex;
         flex-direction: column;
+        position: relative;
+      }
+
+      .debug-size-overlay {
+        position: absolute;
+        top: 40px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #00ff00;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: 12px;
+        border-radius: 4px;
+        z-index: 100;
+        pointer-events: none;
       }
 
       .panel-slices {
@@ -144,6 +159,7 @@
         <div class="panel panel-3d">
         <strong>3D Option Surface</strong>
         <div id="surface3d" class="chart-host"></div>
+          <div id="debugSize" class="debug-size-overlay">Size: -- x --</div>
       </div>
         <div id="layoutResizer" class="resizer"></div>
         <div class="panel panel-slices">
