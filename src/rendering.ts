@@ -312,18 +312,21 @@ const createSurfaceRenderer = (
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.domElement.style.width = "100%";
+  renderer.domElement.style.height = "100%";
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#1a1f2b");
 
   const camera = new THREE.PerspectiveCamera(
     45,
-    container.clientWidth / container.clientHeight,
+      container.clientWidth / container.clientHeight || 1,
     0.1,
     1000
   );
   camera.up.set(0, 0, 1);
-  camera.position.set(15, -20, 12);
+  // Position camera closer to make the surface look larger
+  camera.position.set(10, -12, 8);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -384,6 +387,18 @@ const createSurfaceRenderer = (
   container.innerHTML = "";
   container.appendChild(renderer.domElement);
 
+  // Use a slight delay to ensure the container layout has stabilized
+  // before the first renderer size calculation.
+  setTimeout(() => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (width > 0 && height > 0) {
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+  }, 50);
+
   let animationFrameId: number;
   const animate = () => {
     animationFrameId = requestAnimationFrame(animate);
@@ -392,14 +407,18 @@ const createSurfaceRenderer = (
   };
   animate();
 
-  const resizeObserver = new ResizeObserver(() => {
-    const { clientWidth, clientHeight } = container;
-    if (clientWidth === 0 || clientHeight === 0) {
-      return;
+  const resizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const {width, height} = entry.contentRect;
+      if (width === 0 || height === 0) {
+        continue;
+      }
+      console.log(`[DEBUG_LOG] 3D Resize Event: ${width}x${height}`);
+      renderer.setSize(width, height, false); // false = don't update inline styles
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      controls.update();
     }
-    renderer.setSize(clientWidth, clientHeight);
-    camera.aspect = clientWidth / clientHeight;
-    camera.updateProjectionMatrix();
   });
   resizeObserver.observe(container);
 
@@ -416,6 +435,22 @@ const createSurfaceRenderer = (
     resizeObserver,
     animationFrameId,
   };
+};
+
+export const resizeSurfaceChart = (divId: string) => {
+  const renderer = surfaceRenderers.get(divId);
+  if (!renderer) return;
+
+  const {container, renderer: threeRenderer, camera, controls} = renderer;
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  if (width === 0 || height === 0) return;
+
+  threeRenderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  controls.update();
 };
 
 export const renderSurfaceChart = async (

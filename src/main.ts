@@ -13,6 +13,7 @@ import {
   renderDataPreview,
   renderSliceChart,
   renderSurfaceChart,
+  resizeSurfaceChart,
   updateSliceChart,
   updateSurfaceChart,
 } from "./rendering";
@@ -43,6 +44,8 @@ const initialize = async () => {
     extractSurfaceWindow(surface, selectionState),
     selectionState
   );
+  // Force a resize immediately after the initial render to ensure it fills space
+  setTimeout(() => resizeSurfaceChart("surface3d"), 100);
   const initialXSlice = extractXSlice(surface, selectionState.xIndex);
   const initialYSlice = extractYSlice(surface, selectionState.yIndex);
 
@@ -292,14 +295,16 @@ const initialize = async () => {
 
     layout.style.gridTemplateColumns = `${clampedPercentage}% 8px 1fr`;
 
-    // Explicitly tell Plotly to resize.
+    // 1. Manually trigger the 3D resize
+    resizeSurfaceChart("surface3d");
+
+    // 2. Explicitly tell Plotly to resize.
     const sliceX = document.getElementById("sliceX");
     const sliceY = document.getElementById("sliceY");
     if (sliceX) Plotly.Plots.resize(sliceX);
     if (sliceY) Plotly.Plots.resize(sliceY);
 
-    // Force a window resize event to trigger the 3D renderer's ResizeObserver
-    // and Plotly's internal responsive logic.
+    // 3. Trigger a window resize as a catch-all
     window.dispatchEvent(new Event("resize"));
   });
 
@@ -308,6 +313,8 @@ const initialize = async () => {
       isDragging = false;
       resizer.classList.remove("dragging");
       document.body.style.cursor = "";
+      // Ensure everything is perfectly sized once dragging stops
+      window.dispatchEvent(new Event("resize"));
     }
   });
 
