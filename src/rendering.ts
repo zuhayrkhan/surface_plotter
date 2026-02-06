@@ -28,7 +28,9 @@ type SurfaceRenderer = {
   mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   axesGroup: THREE.Group;
   container: HTMLElement;
+  resizeObserver: ResizeObserver;
   animationFrameId: number;
+  fitDistance: number;
 };
 
 const surfaceRenderers = new Map<string, SurfaceRenderer>();
@@ -121,8 +123,75 @@ const buildSurfaceGeometry = (surface: SurfaceData): SurfaceGeometryData => {
   );
   geometry.translate(-center.x, -center.y, -center.z);
   geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
 
   return { geometry, bounds, center };
+};
+
+const getSurfaceRadius = (
+    mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>
+) => {
+  if (!mesh.geometry.boundingSphere) {
+    mesh.geometry.computeBoundingSphere();
+  }
+  return mesh.geometry.boundingSphere?.radius ?? 1;
+};
+
+const computeFitDistance = (
+    camera: THREE.PerspectiveCamera,
+    radius: number
+) => {
+  const vFov = THREE.MathUtils.degToRad(camera.fov);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+  const safeHFov = hFov > 0 ? hFov : vFov;
+  const fitHeight = radius / Math.tan(vFov / 2);
+  const fitWidth = radius / Math.tan(safeHFov / 2);
+  return Math.max(fitHeight, fitWidth) * 1.15;
+};
+
+const applySurfaceResize = (
+    surfaceRenderer: SurfaceRenderer,
+    width: number,
+    height: number
+) => {
+  if (width <= 0 || height <= 0) return;
+
+  const {renderer, camera, controls, mesh} = surfaceRenderer;
+
+  renderer.setSize(width, height, true);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  const radius = getSurfaceRadius(mesh);
+  const fitDistance = computeFitDistance(camera, radius);
+  const currentDistance = camera.position.distanceTo(controls.target);
+
+  if (!surfaceRenderer.fitDistance) {
+    surfaceRenderer.fitDistance = fitDistance;
+    camera.near = Math.max(0.1, currentDistance - radius * 2);
+    camera.far = Math.max(camera.near + 1, currentDistance + radius * 3);
+    camera.updateProjectionMatrix();
+    controls.update();
+    return;
+  }
+
+  const zoomFactor = currentDistance / surfaceRenderer.fitDistance;
+  const nextDistance = fitDistance * zoomFactor;
+
+  const direction = camera.position.clone().sub(controls.target);
+  if (direction.lengthSq() < 1e-6) {
+    direction.set(0, -1, 0);
+  }
+  direction.normalize();
+  camera.position
+      .copy(controls.target)
+      .add(direction.multiplyScalar(nextDistance));
+  camera.near = Math.max(0.1, nextDistance - radius * 2);
+  camera.far = Math.max(camera.near + 1, nextDistance + radius * 3);
+  camera.updateProjectionMatrix();
+  controls.update();
+
+  surfaceRenderer.fitDistance = fitDistance;
 };
 
 const createTextSprite = (label: string, color: string, fontSize = 20) => {
@@ -390,14 +459,24 @@ const createSurfaceRenderer = (
 
   // Use a slight delay to ensure the container layout has stabilized
   // before the first renderer size calculation.
+  const surfaceRenderer: SurfaceRenderer = {
+    renderer,
+    scene,
+    camera,
+    controls,
+    mesh,
+    axesGroup,
+    container,
+    resizeObserver: new ResizeObserver(() => {
+    }),
+    animationFrameId: 0,
+    fitDistance: 0,
+  };
+
   setTimeout(() => {
     const width = container.clientWidth;
     const height = container.clientHeight;
-    if (width > 0 && height > 0) {
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    }
+    applySurfaceResize(surfaceRenderer, width, height);
   }, 50);
 
   let animationFrameId: number;
@@ -429,24 +508,17 @@ const createSurfaceRenderer = (
 
   renderer.render(scene, camera);
 
-  return {
-    renderer,
-    scene,
-    camera,
-    controls,
-    mesh,
-    axesGroup,
-    container,
-    resizeObserver,
-    animationFrameId,
-  };
+  surfaceRenderer.resizeObserver = resizeObserver;
+  surfaceRenderer.animationFrameId = animationFrameId;
+
+  return surfaceRenderer;
 };
 
 export const resizeSurfaceChart = (divId: string) => {
   const renderer = surfaceRenderers.get(divId);
   if (!renderer) return;
 
-  const {container, renderer: threeRenderer, camera, controls} = renderer;
+  const {container} = renderer;
 
   // Use getBoundingClientRect for absolute precision
   const rect = container.getBoundingClientRect();
@@ -460,11 +532,7 @@ export const resizeSurfaceChart = (divId: string) => {
 
   if (width === 0 || height === 0) return;
 
-  // IMPORTANT: Set updateStyle to true to let Three.js manage the canvas CSS
-  threeRenderer.setSize(width, height, true);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-  controls.update();
+  applySurfaceResize(renderer, width, height);
 };
 
 export const renderSurfaceChart = async (
@@ -520,10 +588,17 @@ export const updateSurfaceChart = async (
   const { geometry: nextGeometry, bounds, center } = buildSurfaceGeometry(surface);
   renderer.mesh.geometry.dispose();
   renderer.mesh.geometry = nextGeometry;
+  renderer.mesh.geometry.computeBoundingSphere();
   renderer.scene.remove(renderer.axesGroup);
   disposeAxesGroup(renderer.axesGroup);
   renderer.axesGroup = buildAxesGroup(bounds, center, surface);
   renderer.scene.add(renderer.axesGroup);
+  const rect = renderer.container.getBoundingClientRect();
+  applySurfaceResize(
+      renderer,
+      Math.floor(rect.width),
+      Math.floor(rect.height)
+  );
   // Manual render is not strictly necessary due to animate loop, but helps immediate feedback
   renderer.renderer.render(renderer.scene, renderer.camera);
 };
